@@ -1,0 +1,9 @@
+Px = 0-3999 in binary = 1111 1001 1111 ---- 12 inputs
+Py = 0-255 in binary = 1111 1111 -- 8 inputs 
+i = 1-5
+Eix = 0-3999 in binary = 1111 1001 1111 ---- 12 inputs
+Eiy = 0-255 in binary = 1111 1111 --- 8 inputs
+
+j = 1-256
+Tj = 0 - 1 
+
