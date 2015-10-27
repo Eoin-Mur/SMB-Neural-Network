@@ -65,8 +65,8 @@ end
 function getScreen()
 	getPlayerPosition()
 	local screen = {}
-	for tileY = -6*16, 6*16, 16 do
-		for tileX = -6*16, 6*16, 16 do
+	for tileY = -2*16, 2*16, 16 do
+		for tileX = -2*16, 2*16, 16 do
 			screen[#screen+1] = 0
 
 			if getTile(tileX,tileY) ~= 0 and playerY+tileY < 0x1B0 then
@@ -81,11 +81,11 @@ end
 function printScreen(screenArray)
 	local currentRow = 1
 	local currentColumn = 1
-	gui.drawBox(10,10,10*14,10*14,0xFF000000,0xA0000000)
+	gui.drawBox(10,10,10*6,10*6,0xFF000000,0xA0000000)
 	for i = 1, #screenArray, 1 do
 		gui.drawText(10*currentColumn,10*currentRow,screenArray[i],0xFFFFFFFF,10,"Segoe UI")
 		currentColumn = currentColumn + 1
-		if i % 13 == 0 and i ~= 1 then
+		if i % 5 == 0 and i ~= 1 then
 			currentRow = currentRow + 1
 			currentColumn = 1
 		end
@@ -93,24 +93,66 @@ function printScreen(screenArray)
 	end
 end
 
+function decimalToBinaryArray(decimal,arrayLen)
+	if decimal == 0 then
+		return {0}
+	end
+	local binaryArray = {}
+	while decimal ~= 0 do
+		binaryArray[#binaryArray+1] = decimal%2
+		decimal = math.floor(decimal/2)
+	end
+	return binaryArray
+end
+
+function getKeyPresses()
+	local keys = {}
+	keys = joypad.getimmediate()
+	local outputs = {}
+	outputs[1] = keys["P1 A"]
+	outputs[2] = keys["P1 B"]
+	outputs[3] = keys["P1 Down"]
+	outputs[4] = keys["P1 Left"]
+	outputs[5] = keys["P1 Right"]
+	outputs[6] = keys["P1 Up"]
+
+	--clean up out puts
+	for i=1, #outputs, 1 do
+		if outputs[i] == false then
+			outputs[i] = 0
+		else
+			outputs[i] = 1
+		end
+	end
+	return outputs
+end
+
 function drawData()
 	getPlayerPosition()
 	getEnemyScreenPositions()
 
-	gui.drawBox(180,10,255,140,0xFF000000,0xA0000000)
-	gui.drawText(182,12,"PlayerX: "..playerX,0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(182,22,"PlayerY: "..playerY,0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(182,32,"Enemy1X: "..enemyPositons[1]["x"],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(182,42,"Enemy1Y: "..enemyPositons[1]["y"],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(182,52,"Enemy2X: "..enemyPositons[2]["x"],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(182,62,"Enemy2Y: "..enemyPositons[2]["y"],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(182,72,"Enemy3X: "..enemyPositons[3]["x"],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(182,82,"Enemy3Y: "..enemyPositons[3]["y"],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(182,92,"Enemy4X: "..enemyPositons[4]["x"],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(182,102,"Enemy4Y: "..enemyPositons[4]["y"],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(182,112,"Enemy5X: "..enemyPositons[5]["x"],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(182,122,"Enemy5Y: "..enemyPositons[5]["y"],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawBox(150,10,255,140,0xFF000000,0xA0000000)
+	gui.drawText(152,12,"PlayerX   : "..table.concat(decimalToBinaryArray(playerX),""),0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,22,"PlayerY   : "..table.concat(decimalToBinaryArray(playerY),""),0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,32,"Enemy1X: "..table.concat(decimalToBinaryArray(enemyPositons[1]["x"]),""),0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,42,"Enemy1Y: "..table.concat(decimalToBinaryArray(enemyPositons[1]["y"]),""),0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,52,"Enemy2X: "..table.concat(decimalToBinaryArray(enemyPositons[2]["x"]),""),0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,62,"Enemy2Y: "..table.concat(decimalToBinaryArray(enemyPositons[2]["y"]),""),0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,72,"Enemy3X: "..table.concat(decimalToBinaryArray(enemyPositons[3]["x"]),""),0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,82,"Enemy3Y: "..table.concat(decimalToBinaryArray(enemyPositons[3]["y"]),""),0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,92,"Enemy4X: "..table.concat(decimalToBinaryArray(enemyPositons[4]["x"]),""),0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,102,"Enemy4Y: "..table.concat(decimalToBinaryArray(enemyPositons[4]["y"]),""),0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,112,"Enemy5X: "..table.concat(decimalToBinaryArray(enemyPositons[5]["x"]),""),0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,122,"Enemy5Y: "..table.concat(decimalToBinaryArray(enemyPositons[5]["y"]),""),0xFFFFFFFF,10,"Segoe UI")
 
+	outputs = getKeyPresses()
+	gui.drawBox(10,160,60,260,0xFF000000,0xA0000000)
+	gui.drawText(12,162,"A: "..outputs[1],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(12,172,"B: "..outputs[2],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(12,182,"Down: "..outputs[3],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(12,192,"Left: "..outputs[4],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(12,202,"Right: "..outputs[5],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(12,212,"Up: "..outputs[6],0xFFFFFFFF,10,"Segoe UI")
 	--gui.drawBox(190,10,255,150,0xFF000000,0xA0000000)
 	--gui.drawText(192,12,"1Loaded: "..enemysLoaded[1],0xFFFFFFFF,10,"Segoe UI")
 	--gui.drawText(192,22,"2Loaded: "..enemysLoaded[2],0xFFFFFFFF,10,"Segoe UI")
