@@ -30,6 +30,7 @@ function getEnemyScreenPositions()
 			enemyPositons[enemy+1] = {["x"] = 0, ["y"] = 0}
 		end	
 	end
+	return enemyPositons
 end
 
 function getEnemysLoaded()
@@ -65,8 +66,8 @@ end
 function getScreen()
 	getPlayerPosition()
 	local screen = {}
-	for tileY = -2*16, 2*16, 16 do
-		for tileX = -2*16, 2*16, 16 do
+	for tileY = -3*16, 3*16, 16 do
+		for tileX = -3*16, 3*16, 16 do
 			screen[#screen+1] = 0
 
 			if getTile(tileX,tileY) ~= 0 and playerY+tileY < 0x1B0 then
@@ -85,7 +86,7 @@ function printScreen(screenArray)
 	for i = 1, #screenArray, 1 do
 		gui.drawText(10*currentColumn,10*currentRow,screenArray[i],0xFFFFFFFF,10,"Segoe UI")
 		currentColumn = currentColumn + 1
-		if i % 5 == 0 and i ~= 1 then
+		if i % 7 == 0 and i ~= 1 then
 			currentRow = currentRow + 1
 			currentColumn = 1
 		end
