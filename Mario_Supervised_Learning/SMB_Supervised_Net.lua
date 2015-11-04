@@ -1,7 +1,11 @@
-local STATE_FILE = "C:/Users/Eoin/Documents/GitHub/fourth-year-project/Mario_Supervised_Learning/Save_States/SMB_L1-1.State"
 
+
+local STATE_FILE = "C:/Users/eoinm_000/Documents/GitHub/fourth-year-project/Mario_Supervised_Learning/Save_States/SMB_L1-1_laptop.State" --laptop
+
+---local STATE_FILE = "C:/Users/Eoin/Documents/GitHub/fourth-year-project/Mario_Supervised_Learning/Save_States/SMB_L1-1.State" -- desktop
 local TOGGLE_UI = "ON" 
 local RECORD_EXEMPLARS = "OFF"
+local EXPLOIT_NET = "OFF"
 local READY_TO_RECORD = false
 local EXEMPLAR_FILENAME
 local NUM_PAD1, NUM_PAD2, NUM_PAD3, NUM_PAD4, NUM_PAD5
@@ -9,6 +13,41 @@ local RECORD_F = 1000
 local ELAPSED_F = 0
 
 local PLAYER_X, PLAYER_Y
+
+local NUM_INPUTS = 37
+local NUM_NUERONS = 1
+local NUM_OUTPUTS = 6
+
+local NET_TOTAL = NUM_INPUTS + NUM_NUERONS + NUM_OUTPUTS
+ 
+local LOW_I = 1
+local HIGH_I = NUM_INPUTS 
+local LOW_J = NUM_INPUTS + 1
+local HIGH_J = NUM_INPUTS + NUM_NUERONS
+local LOW_K = NUM_INPUTS + NUM_NUERONS + 1
+local HIGH_K = NUM_INPUTS + NUM_NUERONS + NUM_OUTPUTS
+
+local C = 0.1
+local RATE = 0.8
+
+local I = {}
+local y = {}
+local O = {}
+local w = {}
+local wt = {}
+
+local dx = {}
+local dy = {}
+
+ButtonNames = {
+  "A",
+  "B",
+  "Down",
+  "Left",
+  "Right",
+  "Up",
+}
+
 
 function readNumpad()
 	local inputs = input.get()
@@ -47,6 +86,7 @@ function readNumpad()
 	end
 
 	if inputs["NumberPad4"] == nil and NUM_PAD4 == true then
+		learn("DAT_Files/exemplars_Nov_04_14_57_56.dat")
 		NUM_PAD4 = false
 	end
 
@@ -55,6 +95,7 @@ function readNumpad()
 	end
 
 	if inputs["NumberPad5"] == nil and NUM_PAD5 == true then
+		EXPLOIT_NET = "ON"
 		NUM_PAD5 = false
 	end
 end
@@ -107,6 +148,10 @@ function getEnemyScreenPositions()
 		end	
 	end
 	return enemyPositons
+end
+
+function norm(value,min,max)
+	return (value - min) / (max - min)
 end
 
 function getTile(tileX,tileY)
@@ -237,11 +282,241 @@ function isPlayerDead()
 	end
 end
 
+function randomFloat(lower, greater)
+    return lower + math.random()  * (greater - lower);
+end
+
+function InitNetwork()
+	for i = LOW_I, HIGH_I, 1 do
+		w[i] = {}
+		for j = LOW_J, HIGH_J , 1 do
+			w[i][j] = randomFloat( -C, C )
+		end
+	end
+
+	for j = LOW_J, HIGH_J, 1 do
+		w[j] = {}
+		for k = LOW_K, HIGH_K, 1 do
+			w[j][k] = randomFloat( -C, C)
+		end
+	end
+
+	for j = LOW_J, HIGH_J, 1 do
+		wt[j] = randomFloat( -C, C)
+	end
+
+	for k = LOW_K, HIGH_K, 1 do
+		wt[k] = randomFloat( -C, C)
+	end
+end
+
+function forwardPropigate()
+	local x 
+	--inputs -> hidden
+	for j = LOW_J, HIGH_J, 1 do
+		x = 0
+		for i = LOW_I, HIGH_I, 1 do
+			--console.log(I[i])
+			x = x + ( I[i] * w[i][j] )
+			y[j] = sigmod( x - wt[j] )
+		end
+	end
+	--hidden -> output
+	for k = LOW_K, HIGH_K , 1 do
+		x = 0 
+		for j = LOW_J, HIGH_J , 1 do
+			x = x + ( y[j] * w[j][k] )
+			y[k] = sigmod( x - wt[k] )
+		end
+	end
+end
+
+function backPropigate()
+	local dw
+
+	for k = LOW_K, HIGH_K, 1 do
+		dy[k] = y[k] - O[k];
+		dx[k] = ( dy[k] ) * y[k] * (1-y[k])
+	end
+
+	for j = LOW_J, HIGH_J, 1 do
+		local t = 0
+		for k = LOW_K, HIGH_K, 1 do
+			t = t + ( dx[k] * w[j][k] )
+		end
+		dy[j] = t
+		dx[j] = (dy[j] ) * y[j] * ( 1- y[j])
+	end
+	-----------------------------------------
+	for j = LOW_J, HIGH_J, 1 do
+		for k = LOW_K, HIGH_K, 1 do
+			dw = dx[k] * y[j]
+			w[j][k] = w[j][k] - (RATE * dw)
+		end
+	end
+
+	for i = LOW_I, HIGH_I, 1 do
+		for j = LOW_J, HIGH_J, 1 do
+			dw = dx[j] * I[i]
+			w[i][j] = w[i][j] - (RATE * dw)
+		end 
+	end
+
+	for k = LOW_K, HIGH_K, 1 do
+		dw = dx[k] * (-1)
+		wt[k] = wt[k] - ( RATE * dw )
+	end
+
+	for j = LOW_J, HIGH_J, 1 do
+		dw = dx[j] * (-1)
+		wt[j] = wt[j] - ( RATE * dw)
+	end
+end
+
+function sigmod(x)
+	return round((1/(1+math.exp(-4.9*x))),3);
+end
+
+function bipolarSigmod(x)
+	return round((2/math.pi) * math.atan(x),3)
+end
+
+function round(num, idp)
+  local mult = 10^(idp or 0)
+  return math.floor(num * mult + 0.5) / mult
+end
+
+function split(str, pat)
+   local t = {}  
+   local fpat = "(.-)" .. pat
+   local last_end = 1
+   local s, e, cap = str:find(fpat, 1)
+   while s do
+      if s ~= 1 or cap ~= "" then
+	 			table.insert(t,cap)
+      end
+      last_end = e+1
+      s, e, cap = str:find(fpat, last_end)
+   end
+   if last_end <= #str then
+      cap = str:sub(last_end)
+      table.insert(t, cap)
+   end
+   return t
+end
+
+function learn(filename)
+	gui.drawBox(10,10,120,30,0xFF000000,0xA0000000)
+	gui.drawText(10,12,"TRAINING NETWORK!",0xFFFF0000,10,"Segoe UI")
+	for line in io.lines(filename) do
+		local s1 = string.sub(line,1,string.find(line,";") -1)
+		local s2 = string.sub(line,string.find(line,";")+1,string.len(line))
+
+		eI = split(s1,"|")
+		eO = split(s2,"|")
+
+		local x = 1
+		for i = LOW_I, HIGH_I, 1 do
+			I[i] = eI[x]
+			x = x + 1
+		end
+
+		x = 1
+		for k = LOW_K, HIGH_K, 1 do
+			O[k] = eO[x]
+			x = x + 1
+		end 
+
+		forwardPropigate()
+
+		backPropigate()
+
+		logNet("DAT_Files/NETTest.dat")
+	end
+
+end
+
+function logNet(f)
+	local file = io.open(f,"a")
+	file:write("inputs: ")
+	for i = LOW_I, HIGH_I, 1 do
+		file:write(I[i].."|")
+	end
+	file:write(" Net Outputs: ")
+	for k = LOW_K, HIGH_K, 1 do
+		file:write(y[k].."|")
+	end
+	file:write("\n")
+	file:close()
+end
+
+function getInputs()
+	local inp = {}
+	local screen = getScreen(2)
+	local enemyPositons = getEnemyScreenPositions()
+
+	inp[1] = PLAYER_X
+	inp[2] = PLAYER_Y
+
+	for i = 1, #enemyPositons, 1 do
+		inp[#inp+1] = enemyPositons[i]["x"]
+		inp[#inp+2] = enemyPositons[i]["y"]
+	end 
+
+	local x = 1
+	for i = 1, #screen, 1 do
+		inp[#inp+1] = screen[x] 
+		x = x + 1	
+	end
+	return inp
+end
+
+function exploit()
+
+	local inputs = getInputs()
+
+	local x = 1 
+	for i = LOW_I, HIGH_I, 1 do
+		I[i] = inputs[x]
+		x = x + 1
+	end
+
+	forwardPropigate()
+
+	local outputs = {}
+	local x = 1
+	for k = LOW_K, HIGH_K, 1 do
+		local button = "P1 "..ButtonNames[x] 
+		if y[k] > 0.5 then
+			outputs[button] = true
+		else
+			outputs[button] = false
+		end
+		x = x + 1
+	end
+
+	joypad.set(outputs)
+
+	for i = 1, #outputs, 1 do
+		outputs[ButtonNames[i]] = false
+	end
+
+	joypad.set(outputs)
+	
+	logNet("DAT_Files/NETTest.dat")
+
+end
+
+
+InitNetwork()
+
 while true do
-	if RECORD_EXEMPLARS ~= "ON" then
-		drawUI()
-	else 
+	if RECORD_EXEMPLARS == "ON" then
 		recordExemplars()
+	elseif EXPLOIT_NET == "ON" then
+		exploit()
+	else
+		drawUI()
 	end
 	emu.frameadvance()
 end
