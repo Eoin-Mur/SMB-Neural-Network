@@ -11,11 +11,11 @@ local EXEMPLAR_FILENAME
 local NUM_PAD1, NUM_PAD2, NUM_PAD3, NUM_PAD4, NUM_PAD5
 local RECORD_F = 1000
 local ELAPSED_F = 0
-
+local SCREEN_RADIUS = 4
 local PLAYER_X, PLAYER_Y
 
-local NUM_INPUTS = 37
-local NUM_NUERONS = 1
+local NUM_INPUTS = 81
+local NUM_NUERONS = 20
 local NUM_OUTPUTS = 6
 
 local NET_TOTAL = NUM_INPUTS + NUM_NUERONS + NUM_OUTPUTS
@@ -26,6 +26,8 @@ local LOW_J = NUM_INPUTS + 1
 local HIGH_J = NUM_INPUTS + NUM_NUERONS
 local LOW_K = NUM_INPUTS + NUM_NUERONS + 1
 local HIGH_K = NUM_INPUTS + NUM_NUERONS + NUM_OUTPUTS
+
+local TRAIN_ITERATIONS = 2
 
 local C = 0.1
 local RATE = 0.8
@@ -86,7 +88,7 @@ function readNumpad()
 	end
 
 	if inputs["NumberPad4"] == nil and NUM_PAD4 == true then
-		learn("DAT_Files/exemplars_Nov_04_14_57_56.dat")
+		learn("DAT_Files/exemplars_Nov_05_17_45_14.dat",TRAIN_ITERATIONS)
 		NUM_PAD4 = false
 	end
 
@@ -95,7 +97,11 @@ function readNumpad()
 	end
 
 	if inputs["NumberPad5"] == nil and NUM_PAD5 == true then
-		EXPLOIT_NET = "ON"
+		if EXPLOIT_NET == "OFF" then
+			EXPLOIT_NET = "ON"
+		else
+			EXPLOIT_NET = "OFF"
+		end
 		NUM_PAD5 = false
 	end
 end
@@ -141,7 +147,7 @@ function getEnemyScreenPositions()
 		local enemyLoaded = memory.readbyte(0x000F + enemy)
 		if enemyLoaded == 1 then
 			enemyX = memory.readbyte(0x006E + enemy) * 0x100 + memory.readbyte(0x0087 + enemy)
-			enemyY = memory.readbyte(0x00CF + enemy) + 8 
+			enemyY = memory.readbyte(0x00CF + enemy) + 24 
 			enemyPositons[enemy+1] = {["x"] = enemyX, ["y"] = enemyY}
 		else
 			enemyPositons[enemy+1] = {["x"] = 0, ["y"] = 0}
@@ -176,6 +182,7 @@ end
 
 function getScreen(radius)
 	getPlayerPosition()
+	local enemys = getEnemyScreenPositions()
 	local screen = {}
 	for tileY = -radius*16, radius*16, 16 do
 		for tileX = -radius*16, radius*16, 16 do
@@ -185,15 +192,37 @@ function getScreen(radius)
 				screen[#screen] = 1
 			end
 
+			for i = 1, #enemys,1 do
+				distx = math.abs(enemys[i]["x"] - (PLAYER_X+tileX))
+        disty = math.abs(enemys[i]["y"] - (PLAYER_Y+tileY))
+        if distx <= 8 and disty <= 8 then
+          screen[#screen] = -1
+        end
+      end
 		end
 	end
 	return screen
 end
 
+function binToDec(i)
+	local dec = 0
+	for j = #i, 0, -1 do
+		if i[j] == 1 then
+			dec = dec + 2^(#i - j)
+		end
+	end
+	return dec
+end
+
+
 function getKeyPresses()
 	local keys = {}
 	keys = joypad.getimmediate()
 	local outputs = {}
+
+	--for i = 1, #ButtonNames, 1 do
+	--	outputs[i] = keys[ButtonNames[i]]
+	--end
 	outputs[1] = keys["P1 A"]
 	outputs[2] = keys["P1 B"]
 	outputs[3] = keys["P1 Down"]
@@ -216,7 +245,7 @@ function getExemplarInputString(del)
 	local inputsString
 
 	local enemyPositons = getEnemyScreenPositions()
-	local screenArray = getScreen(2)
+	local screenArray = getScreen(SCREEN_RADIUS)
 
 	inputsString = PLAYER_X..del..PLAYER_Y..del..enemyPositons[1]["x"]..
 		del..enemyPositons[1]["y"]..del..enemyPositons[2]["x"]..del..enemyPositons[2]["y"]..
@@ -242,7 +271,7 @@ function recordExemplars()
 
 		if ELAPSED_F < RECORD_F and RECORD_EXEMPLARS == "ON" then
 			local file = io.open(EXEMPLAR_FILENAME,"a")
-			file:write(getExemplarInputString("|")..";"..getExemplarOutputString("|").."\n")
+			file:write(table.concat( getScreen(SCREEN_RADIUS), "|")..";"..getExemplarOutputString("|").."\n")
 			file:close()
 			ELAPSED_F = ELAPSED_F + 1
 		else 
@@ -405,35 +434,39 @@ function split(str, pat)
    return t
 end
 
-function learn(filename)
-	gui.drawBox(10,10,120,30,0xFF000000,0xA0000000)
-	gui.drawText(10,12,"TRAINING NETWORK!",0xFFFF0000,10,"Segoe UI")
-	for line in io.lines(filename) do
-		local s1 = string.sub(line,1,string.find(line,";") -1)
-		local s2 = string.sub(line,string.find(line,";")+1,string.len(line))
+function learn(filename,iterations)
+	for i = 1, iterations, 1 do 
+		for line in io.lines(filename) do
+			gui.drawBox(10,10,120,30,0xFF000000,0xA0000000)
+			gui.drawText(10,12,"TRAINING NETWORK!"..i,0xFFFF0000,10,"Segoe UI")
 
-		eI = split(s1,"|")
-		eO = split(s2,"|")
+			local s1 = string.sub(line,1,string.find(line,";") -1)
+			local s2 = string.sub(line,string.find(line,";")+1,string.len(line))
 
-		local x = 1
-		for i = LOW_I, HIGH_I, 1 do
-			I[i] = eI[x]
-			x = x + 1
+			eI = split(s1,"|")
+			eO = split(s2,"|")
+
+			local x = 1
+			for i = LOW_I, HIGH_I, 1 do
+				I[i] = eI[x]
+				x = x + 1
+			end
+
+			x = 1
+			for k = LOW_K, HIGH_K, 1 do
+				O[k] = eO[x]
+				x = x + 1
+			end 
+
+			forwardPropigate()
+
+			backPropigate()
+
+			logNet("DAT_Files/NETTest.dat")
+
+			emu.frameadvance() --to stop bizhawk from crashing becasue of not loading a new frame for two long.
 		end
-
-		x = 1
-		for k = LOW_K, HIGH_K, 1 do
-			O[k] = eO[x]
-			x = x + 1
-		end 
-
-		forwardPropigate()
-
-		backPropigate()
-
-		logNet("DAT_Files/NETTest.dat")
 	end
-
 end
 
 function logNet(f)
@@ -442,7 +475,7 @@ function logNet(f)
 	for i = LOW_I, HIGH_I, 1 do
 		file:write(I[i].."|")
 	end
-	file:write(" Net Outputs: ")
+	file:write("\nNet Outputs: ")
 	for k = LOW_K, HIGH_K, 1 do
 		file:write(y[k].."|")
 	end
@@ -452,7 +485,7 @@ end
 
 function getInputs()
 	local inp = {}
-	local screen = getScreen(2)
+	local screen = getScreen(SCREEN_RADIUS)
 	local enemyPositons = getEnemyScreenPositions()
 
 	inp[1] = PLAYER_X
@@ -460,21 +493,20 @@ function getInputs()
 
 	for i = 1, #enemyPositons, 1 do
 		inp[#inp+1] = enemyPositons[i]["x"]
-		inp[#inp+2] = enemyPositons[i]["y"]
+		inp[#inp+1] = enemyPositons[i]["y"]
 	end 
 
-	local x = 1
 	for i = 1, #screen, 1 do
-		inp[#inp+1] = screen[x] 
-		x = x + 1	
+		inp[#inp+1] = screen[i] 
 	end
 	return inp
 end
 
 function exploit()
 
-	local inputs = getInputs()
+	local inputs = getScreen(SCREEN_RADIUS)
 
+	printScreen(inputs)
 	local x = 1 
 	for i = LOW_I, HIGH_I, 1 do
 		I[i] = inputs[x]
@@ -493,20 +525,27 @@ function exploit()
 			outputs[button] = false
 		end
 		x = x + 1
-	end
+	end	
 
-	joypad.set(outputs)
-
-	for i = 1, #outputs, 1 do
-		outputs[ButtonNames[i]] = false
-	end
-
-	joypad.set(outputs)
-	
 	logNet("DAT_Files/NETTest.dat")
 
+	return outputs
 end
 
+
+function printScreen(screenArray)
+	local currentRow = 1
+	local currentColumn = 1
+	gui.drawBox(10,10,10*((SCREEN_RADIUS*2)+2),10*((SCREEN_RADIUS*2)+2),0xFF000000,0xA0000000)
+	for i = 1, #screenArray, 1 do
+		gui.drawText(10*currentColumn,10*currentRow,screenArray[i],0xFFFFFFFF,10,"Segoe UI")
+		currentColumn = currentColumn + 1
+		if i % ((SCREEN_RADIUS*2)+1) == 0 and i ~= 1 then
+			currentRow = currentRow + 1
+			currentColumn = 1
+		end
+	end
+end
 
 InitNetwork()
 
@@ -514,7 +553,13 @@ while true do
 	if RECORD_EXEMPLARS == "ON" then
 		recordExemplars()
 	elseif EXPLOIT_NET == "ON" then
-		exploit()
+		--check if the user hits 5 again to end the net execute.
+		readNumpad()
+
+		joypad.set(exploit())
+		if isPlayerDead() then
+			loadSaveState(STATE_FILE)
+		end
 	else
 		drawUI()
 	end
