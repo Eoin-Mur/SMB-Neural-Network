@@ -13,9 +13,10 @@ local RECORD_F = 1000
 local ELAPSED_F = 0
 local SCREEN_RADIUS = 4
 local PLAYER_X, PLAYER_Y
-PREV_EXEMPLAR = "0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|1|1|1|1|1|1|1|1|0|1|1|1|1|1|1|1|1|0|0|0|0|0|0|0|0|0"
-local LEARN_LOG = "DAT_Files/NETLearn_"..os.date("%b_%d_%H_%M_%S")..".dat"
-local RUN_LOG = "DAT_Files/NETRun_"..os.date("%b_%d_%H_%M_%S")..".dat"
+local PREV_EXEMPLAR = "0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|1|1|1|1|1|1|1|1|0|1|1|1|1|1|1|1|1|0|0|0|0|0|0|0|0|0"
+local LEARN_LOG = "../DAT_Files/NETLearn_"..os.date("%b_%d_%H_%M_%S")..".dat"
+local RUN_LOG = "../DAT_Files/NETRun_"..os.date("%b_%d_%H_%M_%S")..".dat"
+local NET_VAL = "../DAT_Files/NETVal_"..os.date("%b_%d_%H_%M_%S")..".dat"
 
 
 local NUM_INPUTS = 81
@@ -83,7 +84,7 @@ function readNumpad()
 	if inputs["NumberPad3"] == nil and NUM_PAD3 == true then
 		loadSaveState(STATE_FILE)
 		RECORD_EXEMPLARS = "ON"
-		EXEMPLAR_FILENAME = "DAT_Files/exemplars_"..os.date("%b_%d_%H_%M_%S")..".dat"
+		EXEMPLAR_FILENAME = "../DAT_Files/exemplars_"..os.date("%b_%d_%H_%M_%S")..".dat"
 		NUM_PAD3 = false
 	end
 
@@ -92,7 +93,7 @@ function readNumpad()
 	end
 
 	if inputs["NumberPad4"] == nil and NUM_PAD4 == true then
-		learn("DAT_Files/exemplars_Nov_24_12_31_03.dat",TRAIN_ITERATIONS)
+		learn("../DAT_Files/exemplars_Nov_24_12_31_03.dat",TRAIN_ITERATIONS)
 		NUM_PAD4 = false
 	end
 
@@ -409,8 +410,12 @@ function backPropigate()
 	end
 end
 
-function sigmod(x)
-	return round((1/(1+math.exp(-4.9*x))),3);
+function sigmod(x,r)
+	if r ~= nil then
+		return round((1/(1+math.exp(-4.9*x))),r);
+	else
+		return 1/(1+math.exp(-4.9*x))
+	end
 end
 
 function bipolarSigmod(x)
@@ -474,6 +479,7 @@ function learn(filename,iterations)
 			emu.frameadvance() --to stop bizhawk from crashing becasue of not loading a new frame for two long.
 		end
 	end
+	StoreNetworkValues( NET_VAL )
 end
 
 function logNet(f,t)
@@ -506,18 +512,18 @@ function StoreNetworkValues( f )
 		end
 			file:write("\n")
 	end
-	file:write("##Tresholds")
+	file:write("##Tresholds\n")
 	for j = LOW_J, HIGH_J, 1 do
 		file:write(wt[j])
 	end
-	file:write("##Hidden->Output weights\n")
+	file:write("\n##Hidden->Output weights\n")
 	for j = LOW_J, HIGH_J, 1 do
 		for k = LOW_K, HIGH_K, 1 do
 			file:write(w[j][k].."|")
 		end
 			file:write("\n")
 	end
-	file:write("##Tresholds")
+	file:write("##Tresholds\n")
 	for k = LOW_K, HIGH_K, 1 do
 		file:write(wt[k])
 	end
@@ -590,7 +596,7 @@ end
 
 InitNetwork()
 console.log(LEARN_LOG.."\n"..RUN_LOG)
-StoreNetworkValues("DAT_Files/storeTest.DAT")
+--StoreNetworkValues("../DAT_Files/storeTest.dat")
 
 while true do
 	if RECORD_EXEMPLARS == "ON" then
