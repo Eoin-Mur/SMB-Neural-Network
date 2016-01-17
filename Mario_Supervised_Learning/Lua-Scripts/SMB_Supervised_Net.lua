@@ -7,9 +7,11 @@ local TOGGLE_UI = "ON"
 local RECORD_EXEMPLARS = "OFF"
 local EXPLOIT_NET = "OFF"
 local SHOW_DATA = "OFF"
+local SETTINGS = "OFF"
 local READY_TO_RECORD = false
-local EXEMPLAR_FILENAME --add to config
-local NUM_PAD1, NUM_PAD2, NUM_PAD3, NUM_PAD4, NUM_PAD5, NUM_PAD0
+local EXEMPLAR_FILENAME
+local NUM_PAD1, NUM_PAD2, NUM_PAD3, NUM_PAD4, NUM_PAD5, NUM_PAD0, NUM_PAD6
+local UP_ARROW,DOWN_ARROW
 local RECORD_F --add to config
 local ELAPSED_F = 0
 local VIEW_RADIUS --add to config
@@ -18,6 +20,7 @@ local PREV_EXEMPLAR = "0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0
 local LEARN_LOG = "../DAT_Files/NETLearn_"..os.date("%b_%d_%H_%M_%S")..".dat"
 local RUN_LOG = "../DAT_Files/NETRun_"..os.date("%b_%d_%H_%M_%S")..".dat"
 local NET_VAL = "../DAT_Files/NETVal_"..os.date("%b_%d_%H_%M_%S")..".dat"
+local TRAINING_FILE
 
 
 local NUM_INPUTS  
@@ -59,7 +62,6 @@ ButtonNames = {
 
 function readNumpad()
 	local inputs = input.get()
-
 	if inputs["NumberPad1"] == true then
 		NUM_PAD1 = true
 	end
@@ -94,7 +96,7 @@ function readNumpad()
 	end
 
 	if inputs["NumberPad4"] == nil and NUM_PAD4 == true then
-		learn("../DAT_Files/exemplars_Nov_24_12_31_03.dat",TRAIN_ITERATIONS)
+		learn(TRAINING_FILE,TRAIN_ITERATIONS)
 		NUM_PAD4 = false
 	end
 
@@ -103,15 +105,9 @@ function readNumpad()
 	end
 
 	if inputs["NumberPad5"] == nil and NUM_PAD5 == true then
-		if EXPLOIT_NET == "OFF" then
-			EXPLOIT_NET = "ON"
-		else
-			EXPLOIT_NET = "OFF"
-		end
+		EXPLOIT_NET = toggleOption(EXPLOIT_NET)
 		NUM_PAD5 = false
 	end
-
-
 
 	if inputs["NumberPad0"] == true then
 		NUM_PAD0 = true
@@ -120,6 +116,16 @@ function readNumpad()
 	if inputs["NumberPad0"] == nil and NUM_PAD0 == true then
 		SHOW_DATA = toggleOption(SHOW_DATA)
 		NUM_PAD0 = false
+	end
+
+	if inputs["NumberPad6"] == true then
+		NUM_PAD6 = true
+	end
+
+	if inputs["NumberPad6"] == nil and NUM_PAD6 == true then
+		SETTINGS = toggleOption(SETTINGS)
+		TOGGLE_UI = toggleOption(TOGGLE_UI)
+		NUM_PAD6 = false
 	end
 
 end
@@ -134,19 +140,25 @@ function toggleOption(option)
 end
 
 function drawUI()
-	readNumpad()
-	if TOGGLE_UI == "ON" then
-		gui.drawBox(10,10,120,110,0xFF000000,0xA0000000)
-		gui.drawText(10,12,"Toggle UI: ",0xFFFFFFFF,10,"Segoe UI")
-		gui.drawText(60,12,"NUM PAD 1",0xFFFFFF00,10,"Segoe UI")
-		gui.drawText(10,32,"Load 1.1: ",0xFFFFFFFF,10,"Segoe UI")
-		gui.drawText(60,32,"NUM PAD 2",0xFFFFFF00,10,"Segoe UI")
-		gui.drawText(10,52,"Record: ",0xFFFFFFFF,10,"Segoe UI")
-		gui.drawText(60,52,"NUM PAD 3",0xFFFFFF00,10,"Segoe UI")
-		gui.drawText(10,72,"Learn: ",0xFFFFFFFF,10,"Segoe UI")
-		gui.drawText(60,72,"NUM PAD 4",0xFFFFFF00,10,"Segoe UI")
-		gui.drawText(10,92,"Exploit: ",0xFFFFFFFF,10,"Segoe UI")
-		gui.drawText(60,92,"NUM PAD 5",0xFFFFFF00,10,"Segoe UI")
+	if SETTINGS == "ON" then
+		settingsUI()
+	else
+		readNumpad()
+		if TOGGLE_UI == "ON" then
+			gui.drawBox(10,10,120,130,0xFF000000,0xE1000000)
+			gui.drawText(10,12,"Toggle UI: ",0xFFFFFFFF,10,"Segoe UI")
+			gui.drawText(60,12,"NUM PAD 1",0xFFFFFF00,10,"Segoe UI")
+			gui.drawText(10,32,"Load 1.1: ",0xFFFFFFFF,10,"Segoe UI")
+			gui.drawText(60,32,"NUM PAD 2",0xFFFFFF00,10,"Segoe UI")
+			gui.drawText(10,52,"Record: ",0xFFFFFFFF,10,"Segoe UI")
+			gui.drawText(60,52,"NUM PAD 3",0xFFFFFF00,10,"Segoe UI")
+			gui.drawText(10,72,"Learn: ",0xFFFFFFFF,10,"Segoe UI")
+			gui.drawText(60,72,"NUM PAD 4",0xFFFFFF00,10,"Segoe UI")
+			gui.drawText(10,92,"Exploit: ",0xFFFFFFFF,10,"Segoe UI")
+			gui.drawText(60,92,"NUM PAD 5",0xFFFFFF00,10,"Segoe UI")
+			gui.drawText(10,112,"Settings: ",0xFFFFFFFF,10,"Segoe UI")
+			gui.drawText(60,112,"NUM PAD 6",0xFFFFFF00,10,"Segoe UI")
+		end
 	end
 end
 
@@ -662,7 +674,7 @@ end
 function loadConfig(filename)
 	local config = parseConfig(filename)
 
-	EXEMPLAR_FILENAME = config["EXEMPLAR_FILENAME"]
+	TRAINING_FILE = config["TRAINING_FILE"]
 	RECORD_F = config["RECORD_F"]
 	VIEW_RADIUS = config["VIEW_RADIUS"]
 	NUM_NUERONS = config["NUM_NUERONS"]
@@ -691,7 +703,7 @@ end
 
 function printVariables()
 	console.log("DEBUG PRINT:")
-	console.log(EXEMPLAR_FILENAME)
+	console.log(TRAINING_FILE)
 	console.log(RECORD_F)
 	console.log(VIEW_RADIUS)
 	console.log(NUM_NUERONS)
@@ -702,6 +714,87 @@ function printVariables()
 	console.log(NET_TOTAL)
 end
 
+local maxSel = 7
+local curSel = 1
+function settingsUI()
+
+	local inputs = input.get()
+	--console.log(inputs["UpArrow"])
+
+	gui.drawBox(10,10,240, 240,0xFF000000,0xE1000000)
+	gui.drawText(12,20,"TRAINING_FILE: ",highlight(1,curSel),10,"Segoe UI")
+	gui.drawText(12,60,"RECORD_F: ",highlight(2,curSel),10,"Segoe UI")
+	gui.drawText(12,80,"VIEW_RADIUS: ",highlight(3,curSel),10,"Segoe UI")
+	gui.drawText(12,100,"NUM_NUERONS: ",highlight(4,curSel),10,"Segoe UI")
+	gui.drawText(12,120,"C: ",highlight(5,curSel),10,"Segoe UI")
+	gui.drawText(12,140,"RATE: ",highlight(6,curSel),10,"Segoe UI")
+	gui.drawText(12,160,"TRAIN_ITERATIONS: ",highlight(7,curSel),10,"Segoe UI")
+
+	gui.drawText(24,40,TRAINING_FILE,0xFFFFFF00,10,"Segoe UI")
+	gui.drawText(120,60,RECORD_F,0xFFFFFF00,10,"Segoe UI")
+	gui.drawText(120,80,VIEW_RADIUS,0xFFFFFF00,10,"Segoe UI")
+	gui.drawText(120,100,NUM_NUERONS,0xFFFFFF00,10,"Segoe UI")
+	gui.drawText(120,120,C,0xFFFFFF00,10,"Segoe UI")
+	gui.drawText(120,140,RATE,0xFFFFFF00,10,"Segoe UI")
+	gui.drawText(120,160,TRAIN_ITERATIONS,0xFFFFFF00,10,"Segoe UI")
+
+	gui.drawText(12,200,"Navigate: Up/Down",0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(110,200,"Edit: Enter",0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(160,200,"Exit: Numpad 1",0xFFFFFFFF,10,"Segoe UI")
+
+	if inputs["NumberPad1"] == true then
+		NUM_PAD1 = true
+	end
+
+	if inputs["NumberPad1"] == nil and NUM_PAD1 == true then
+		TOGGLE_UI = toggleOption(TOGGLE_UI)
+		SETTINGS = toggleOption(SETTINGS)
+		NUM_PAD1 = false
+	end
+	--nav keys
+	if inputs["UpArrow"] == true then
+		UP_ARROW = true
+	end
+
+	if inputs["UpArrow"] == nil and UP_ARROW == true then
+		curSel = toggleSel(curSel,maxSel,"UP")
+		UP_ARROW = false
+	end
+
+	if inputs["DownArrow"] == true then
+		DOWN_ARROW = true
+	end
+
+	if inputs["DownArrow"] == nil and DOWN_ARROW == true then
+		curSel = toggleSel(curSel,maxSel,"DOWN")
+		DOWN_ARROW = false
+	end
+
+end
+
+function  toggleSel( sel, maxSel, dir )
+	if dir == "UP" then
+		if sel == 1 then
+			return maxSel
+		else
+			return sel-1
+		end
+	else 
+		if sel == maxSel then
+			return 1
+		else
+			return sel+1
+		end
+	end
+end
+
+function highlight(itemNum, currentSel)
+	if(currentSel == itemNum) then
+		return 0xFFFF0000
+	else 
+		return 0xFFFFFFFF
+	end
+end
 
 loadConfig("../config.txt")
 
