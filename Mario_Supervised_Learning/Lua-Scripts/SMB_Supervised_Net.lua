@@ -1,17 +1,18 @@
 
 
-local STATE_FILE = "C:/Users/eoinm_000/Documents/GitHub/fourth-year-project/Mario_Supervised_Learning/Save_States/SMB_L1-1_laptop.State" --laptop
+--local STATE_FILE = "C:/Users/eoinm_000/Documents/GitHub/fourth-year-project/Mario_Supervised_Learning/Save_States/SMB_L1-1_laptop.State" --laptop
 
----local STATE_FILE = "C:/Users/Eoin/Documents/GitHub/fourth-year-project/Mario_Supervised_Learning/Save_States/SMB_L1-1.State" -- desktop
+local STATE_FILE = "C:/Users/Eoin/Documents/GitHub/fourth-year-project/Mario_Supervised_Learning/Save_States/SMB_L1-1.State" -- desktop
 local TOGGLE_UI = "ON" 
 local RECORD_EXEMPLARS = "OFF"
 local EXPLOIT_NET = "OFF"
+local SHOW_DATA = "OFF"
 local READY_TO_RECORD = false
-local EXEMPLAR_FILENAME
-local NUM_PAD1, NUM_PAD2, NUM_PAD3, NUM_PAD4, NUM_PAD5
-local RECORD_F = 1000
+local EXEMPLAR_FILENAME --add to config
+local NUM_PAD1, NUM_PAD2, NUM_PAD3, NUM_PAD4, NUM_PAD5, NUM_PAD0
+local RECORD_F --add to config
 local ELAPSED_F = 0
-local SCREEN_RADIUS = 4
+local VIEW_RADIUS --add to config
 local PLAYER_X, PLAYER_Y
 local PREV_EXEMPLAR = "0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|1|1|1|1|1|1|1|1|0|1|1|1|1|1|1|1|1|0|0|0|0|0|0|0|0|0"
 local LEARN_LOG = "../DAT_Files/NETLearn_"..os.date("%b_%d_%H_%M_%S")..".dat"
@@ -19,23 +20,23 @@ local RUN_LOG = "../DAT_Files/NETRun_"..os.date("%b_%d_%H_%M_%S")..".dat"
 local NET_VAL = "../DAT_Files/NETVal_"..os.date("%b_%d_%H_%M_%S")..".dat"
 
 
-local NUM_INPUTS = 81
-local NUM_NUERONS = 20
+local NUM_INPUTS  
+local NUM_NUERONS --add to config
 local NUM_OUTPUTS = 6
 
-local NET_TOTAL = NUM_INPUTS + NUM_NUERONS + NUM_OUTPUTS
+local NET_TOTAL 
  
-local LOW_I = 1
-local HIGH_I = NUM_INPUTS 
-local LOW_J = NUM_INPUTS + 1
-local HIGH_J = NUM_INPUTS + NUM_NUERONS
-local LOW_K = NUM_INPUTS + NUM_NUERONS + 1
-local HIGH_K = NUM_INPUTS + NUM_NUERONS + NUM_OUTPUTS
+local LOW_I 
+local HIGH_I 
+local LOW_J
+local HIGH_J
+local LOW_K 
+local HIGH_K 
 
-local TRAIN_ITERATIONS = 2
+local TRAIN_ITERATIONS --add to config
 
-local C = 0.1
-local RATE = 0.8
+local C --add to config
+local RATE --add to config
 
 local I = {}
 local y = {}
@@ -109,6 +110,18 @@ function readNumpad()
 		end
 		NUM_PAD5 = false
 	end
+
+
+
+	if inputs["NumberPad0"] == true then
+		NUM_PAD0 = true
+	end
+
+	if inputs["NumberPad0"] == nil and NUM_PAD0 == true then
+		SHOW_DATA = toggleOption(SHOW_DATA)
+		NUM_PAD0 = false
+	end
+
 end
 
 function toggleOption(option)
@@ -250,7 +263,7 @@ function getExemplarInputString(del)
 	local inputsString
 
 	local enemyPositons = getEnemyScreenPositions()
-	local screenArray = getScreen(SCREEN_RADIUS)
+	local screenArray = getScreen(VIEW_RADIUS)
 
 	inputsString = PLAYER_X..del..PLAYER_Y..del..enemyPositons[1]["x"]..
 		del..enemyPositons[1]["y"]..del..enemyPositons[2]["x"]..del..enemyPositons[2]["y"]..
@@ -275,7 +288,7 @@ function recordExemplars()
 		gui.drawText(10,12,"RECORDING EXEMPLARS",0xFFFF0000,10,"Segoe UI")
 
 		if ELAPSED_F < RECORD_F and RECORD_EXEMPLARS == "ON" then
-			local exemplarIn = table.concat( getScreen(SCREEN_RADIUS), "|")
+			local exemplarIn = table.concat( getScreen(VIEW_RADIUS), "|")
 			local exemplarOut = getExemplarOutputString("|")
 			local file = io.open(EXEMPLAR_FILENAME,"a")
 			file:write(PREV_EXEMPLAR..";"..exemplarOut.."\n")
@@ -514,7 +527,7 @@ function StoreNetworkValues( f )
 	end
 	file:write("##Tresholds\n")
 	for j = LOW_J, HIGH_J, 1 do
-		file:write(wt[j])
+		file:write(wt[j].."|")
 	end
 	file:write("\n##Hidden->Output weights\n")
 	for j = LOW_J, HIGH_J, 1 do
@@ -525,14 +538,14 @@ function StoreNetworkValues( f )
 	end
 	file:write("##Tresholds\n")
 	for k = LOW_K, HIGH_K, 1 do
-		file:write(wt[k])
+		file:write(wt[k].."|")
 	end
 	file:close()
 end
 
 function getInputs()
 	local inp = {}
-	local screen = getScreen(SCREEN_RADIUS)
+	local screen = getScreen(VIEW_RADIUS)
 	local enemyPositons = getEnemyScreenPositions()
 
 	inp[1] = PLAYER_X
@@ -551,7 +564,7 @@ end
 
 function exploit()
 
-	local inputs = getScreen(SCREEN_RADIUS)
+	local inputs = getScreen(VIEW_RADIUS)
 
 	printScreen(inputs)
 	local x = 1 
@@ -583,22 +596,121 @@ end
 function printScreen(screenArray)
 	local currentRow = 1
 	local currentColumn = 1
-	gui.drawBox(10,10,10*((SCREEN_RADIUS*2)+2),10*((SCREEN_RADIUS*2)+2),0xFF000000,0xA0000000)
+	gui.drawBox(10,10,10*((VIEW_RADIUS*2)+2),10*((VIEW_RADIUS*2)+2),0xFF000000,0xA0000000)
 	for i = 1, #screenArray, 1 do
 		gui.drawText(10*currentColumn,10*currentRow,screenArray[i],0xFFFFFFFF,10,"Segoe UI")
 		currentColumn = currentColumn + 1
-		if i % ((SCREEN_RADIUS*2)+1) == 0 and i ~= 1 then
+		if i % ((VIEW_RADIUS*2)+1) == 0 and i ~= 1 then
 			currentRow = currentRow + 1
 			currentColumn = 1
 		end
 	end
 end
 
-InitNetwork()
-console.log(LEARN_LOG.."\n"..RUN_LOG)
+function drawData()
+	printScreen(getScreen(VIEW_RADIUS))
+
+	getPlayerPosition()
+	getEnemyScreenPositions()
+
+	gui.drawBox(150,10,255,140,0xFF000000,0xA0000000)
+	gui.drawText(152,12,"PlayerX   : "..PLAYER_X,0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,22,"PlayerY   : "..PLAYER_Y,0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,32,"Enemy1X: "..enemyPositons[1]["x"],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,42,"Enemy1Y: "..enemyPositons[1]["y"],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,52,"Enemy2X: "..enemyPositons[2]["x"],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,62,"Enemy2Y: "..enemyPositons[2]["y"],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,72,"Enemy3X: "..enemyPositons[3]["x"],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,82,"Enemy3Y: "..enemyPositons[3]["y"],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,92,"Enemy4X: "..enemyPositons[4]["x"],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,102,"Enemy4Y: "..enemyPositons[4]["y"],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,112,"Enemy5X: "..enemyPositons[5]["x"],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,122,"Enemy5Y: "..enemyPositons[5]["y"],0xFFFFFFFF,10,"Segoe UI")
+
+	outputs = getKeyPresses()
+	gui.drawBox(10,160,60,260,0xFF000000,0xA0000000)
+	gui.drawText(12,162,"A: "..outputs[1],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(12,172,"B: "..outputs[2],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(12,182,"Down: "..outputs[3],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(12,192,"Left: "..outputs[4],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(12,202,"Right: "..outputs[5],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(12,212,"Up: "..outputs[6],0xFFFFFFFF,10,"Segoe UI")
+	--gui.drawBox(190,10,255,150,0xFF000000,0xA0000000)
+	--gui.drawText(192,12,"1Loaded: "..enemysLoaded[1],0xFFFFFFFF,10,"Segoe UI")
+	--gui.drawText(192,22,"2Loaded: "..enemysLoaded[2],0xFFFFFFFF,10,"Segoe UI")
+	--gui.drawText(192,32,"3Loaded: "..enemysLoaded[3],0xFFFFFFFF,10,"Segoe UI")
+	--gui.drawText(192,42,"4Loaded: "..enemysLoaded[4],0xFFFFFFFF,10,"Segoe UI")
+	--gui.drawText(192,52,"5Loaded: "..enemysLoaded[5],0xFFFFFFFF,10,"Segoe UI")
+end	
+
+--console.log(LEARN_LOG.."\n"..RUN_LOG)
 --StoreNetworkValues("../DAT_Files/storeTest.dat")
 
+function parseConfig(filename)
+	local config = {}
+	for line in io.lines(filename) do
+		line = line:match("%s*(.+)") -- only read in lines that have characters 
+		if line and line:sub(1,1) ~= "#" and line:sub(1,1) ~= ";" then 
+			option = line:match("(.*)%s+") --string of any char's followed by one or more space
+			value = line:match("%s+(.*)") -- all characters after one or more space
+			config[option] = value
+		end
+	end
+	return config
+end
+
+function loadConfig(filename)
+	local config = parseConfig(filename)
+
+	EXEMPLAR_FILENAME = config["EXEMPLAR_FILENAME"]
+	RECORD_F = config["RECORD_F"]
+	VIEW_RADIUS = config["VIEW_RADIUS"]
+	NUM_NUERONS = config["NUM_NUERONS"]
+	C = config["C"]
+	RATE = config["RATE"]
+	TRAIN_ITERATIONS = config["TRAIN_ITERATIONS"]
+
+	loadNetConfig()
+
+end
+
+function loadNetConfig()
+
+	NUM_INPUTS = (VIEW_RADIUS * 2 + 1) * (VIEW_RADIUS * 2 + 1)  
+
+	NET_TOTAL = NUM_INPUTS + NUM_NUERONS + NUM_OUTPUTS
+ 
+	LOW_I = 1
+	HIGH_I = NUM_INPUTS 
+	LOW_J = NUM_INPUTS + 1
+	HIGH_J = NUM_INPUTS + NUM_NUERONS
+	LOW_K = NUM_INPUTS + NUM_NUERONS + 1
+	HIGH_K = NUM_INPUTS + NUM_NUERONS + NUM_OUTPUTS
+
+end
+
+function printVariables()
+	console.log("DEBUG PRINT:")
+	console.log(EXEMPLAR_FILENAME)
+	console.log(RECORD_F)
+	console.log(VIEW_RADIUS)
+	console.log(NUM_NUERONS)
+	console.log(C)
+	console.log(RATE)
+	console.log(TRAIN_ITERATIONS)
+	console.log(NUM_INPUTS)
+	console.log(NET_TOTAL)
+end
+
+
+loadConfig("../config.txt")
+
+InitNetwork()
+
 while true do
+	if SHOW_DATA == "ON" then
+		drawData()
+	end
 	if RECORD_EXEMPLARS == "ON" then
 		recordExemplars()
 	elseif EXPLOIT_NET == "ON" then
