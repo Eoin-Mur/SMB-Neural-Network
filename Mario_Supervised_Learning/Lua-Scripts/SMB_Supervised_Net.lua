@@ -113,6 +113,7 @@ function readNumpad()
 		if EXPLOIT_NET == "OFF" then
 			local file = io.open(RUN_LOG,"a")
 			file:write('<?xml version="1.0" encoding="UTF-8"?>\n')
+			file:write('<?xml-stylesheet type="text/xsl" href="run_style.xsl"?>\n')
 			file:write('<Network_LOG>')
 			file:close()
 		else
@@ -525,6 +526,7 @@ end
 function learn(filename,iterations)
 	local file = io.open(LEARN_LOG,"a")
 	file:write('<?xml version="1.0" encoding="UTF-8"?>\n')
+	file:write('<?xml-stylesheet type="text/xsl" href="training_style.xsl"?>')
 	file:write('<Network_LOG>')
 	file:close()
 	for i = 1, iterations, 1 do 
