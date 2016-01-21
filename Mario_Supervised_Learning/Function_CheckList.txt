@@ -1,0 +1,33 @@
+
+Function 																							|	 Progess 
+________________________________________________________________________
+1. Read Memory addresses 															|	Done
+
+2. Get inputs from game 															|	Done
+
+3. Get outputs from user															|	Done
+
+4. Record exemplars to file														|	Done
+
+5. network functionality															|	Done
+
+6. Write network values to file												|	Done/Needs better data struct(may use xml or json?)
+
+7. User interface finalisation												|	Done
+
+7. Read config file.																	|	Done
+
+8. Settngs interface																	|	Done
+
+9. functionality to modify config from settings ui		| Inprogess
+
+10. graphical display of network											|	...
+
+11. Examine the exemplars inputs(Pre processing) 			| ...
+	NOTE: Jump state problem!!!!!												
+
+12. Train the network																	| ...
+
+13. Please work and beat the first level!!!!!!!!!			| ??????????
+
+14. Profit																						|

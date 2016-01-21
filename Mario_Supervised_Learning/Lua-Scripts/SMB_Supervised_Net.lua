@@ -17,11 +17,13 @@ local ELAPSED_F = 0
 local VIEW_RADIUS --add to config
 local PLAYER_X, PLAYER_Y
 local PREV_EXEMPLAR = "0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|1|1|1|1|1|1|1|1|0|1|1|1|1|1|1|1|1|0|0|0|0|0|0|0|0|0"
-local LEARN_LOG = "../DAT_Files/NETLearn_"..os.date("%b_%d_%H_%M_%S")..".dat"
-local RUN_LOG = "../DAT_Files/NETRun_"..os.date("%b_%d_%H_%M_%S")..".dat"
-local NET_VAL = "../DAT_Files/NETVal_"..os.date("%b_%d_%H_%M_%S")..".dat"
+local LEARN_LOG = "../Training_Logs/NETLearn_"..os.date("%b_%d_%H_%M_%S")..".xml"
+local RUN_LOG = "../Run_Logs/NETRun_"..os.date("%b_%d_%H_%M_%S")..".xml"
+local NET_VAL = "../Network_Values/NETVal_"..os.date("%b_%d_%H_%M_%S")..".dat"
+local NET_VAL_XML = "../Network_Values/NETVal_"..os.date("%b_%d_%H_%M_%S")..".xml"
 local TRAINING_FILE
 
+--Network variables---
 
 local NUM_INPUTS  
 local NUM_NUERONS --add to config
@@ -50,6 +52,8 @@ local wt = {}
 local dx = {}
 local dy = {}
 
+--Array for control buttons used in setting from net out put---
+
 ButtonNames = {
   "A",
   "B",
@@ -60,6 +64,7 @@ ButtonNames = {
 }
 
 
+--Read the numpad used in the main UI to access diferent fucntions
 function readNumpad()
 	local inputs = input.get()
 	if inputs["NumberPad1"] == true then
@@ -87,7 +92,7 @@ function readNumpad()
 	if inputs["NumberPad3"] == nil and NUM_PAD3 == true then
 		loadSaveState(STATE_FILE)
 		RECORD_EXEMPLARS = "ON"
-		EXEMPLAR_FILENAME = "../DAT_Files/exemplars_"..os.date("%b_%d_%H_%M_%S")..".dat"
+		EXEMPLAR_FILENAME = "../Exemplar_Files/exemplars_"..os.date("%b_%d_%H_%M_%S")..".dat"
 		NUM_PAD3 = false
 	end
 
@@ -105,6 +110,17 @@ function readNumpad()
 	end
 
 	if inputs["NumberPad5"] == nil and NUM_PAD5 == true then
+		if EXPLOIT_NET == "OFF" then
+			local file = io.open(RUN_LOG,"a")
+			file:write('<?xml version="1.0" encoding="UTF-8"?>\n')
+			file:write('<Network_LOG>')
+			file:close()
+		else
+			local file = io.open(RUN_LOG,"a")
+			file:write('</Network_LOG>')
+			file:close()
+		end
+		
 		EXPLOIT_NET = toggleOption(EXPLOIT_NET)
 		NUM_PAD5 = false
 	end
@@ -139,6 +155,7 @@ function toggleOption(option)
 	return option
 end
 
+--draw the main UI
 function drawUI()
 	if SETTINGS == "ON" then
 		settingsUI()
@@ -166,11 +183,17 @@ function loadSaveState(stateLocation)
 	savestate.load(stateLocation)
 end
 
+-----------------------------------------------
+--------------Input/Outputs functions-----------
+-----------------------------------------------
+
+--get marios true X and Y position
 function getPlayerPosition()
 	PLAYER_X = memory.readbyte(0x006D) * 0x100 + memory.readbyte(0x0086)
 	PLAYER_Y = memory.readbyte(0x03B8) + 16
 end
 
+-- get the ture enemy positions 
 function getEnemyScreenPositions()
 	enemyPositons = {}
 	for enemy = 0, 4, 1 do
@@ -190,6 +213,7 @@ function norm(value,min,max)
 	return (value - min) / (max - min)
 end
 
+-- get the value of the tile passed as x and y positions.
 function getTile(tileX,tileY)
 	local x = PLAYER_X + tileX + 8
 	local y = PLAYER_Y + tileY - 16
@@ -210,6 +234,7 @@ function getTile(tileX,tileY)
 	end
 end
 
+-- return the screen as an array of values ranging -1 too 1
 function getScreen(radius)
 	getPlayerPosition()
 	local enemys = getEnemyScreenPositions()
@@ -234,6 +259,8 @@ function getScreen(radius)
 	return screen
 end
 
+--convert binary to decimal 
+-- not needed anymore
 function binToDec(i)
 	local dec = 0
 	for j = #i, 0, -1 do
@@ -244,7 +271,7 @@ function binToDec(i)
 	return dec
 end
 
-
+--read the key presses on the controler
 function getKeyPresses()
 	local keys = {}
 	keys = joypad.getimmediate()
@@ -271,6 +298,17 @@ function getKeyPresses()
 	return outputs
 end
 
+
+-----------------------------------------------------
+-------------- END Input/Outputs functions-----------
+-----------------------------------------------------
+
+
+------------------------------------------------------
+---------------Exemplar fuctions----------------------
+------------------------------------------------------
+
+--old input scheme where i pass in also the player and enemy x and y
 function getExemplarInputString(del)
 	local inputsString
 
@@ -290,6 +328,7 @@ function getExemplarOutputString(del)
 	return table.concat(getKeyPresses(),del)
 end
 
+--write the current exemplars to file
 function recordExemplars()
 	if READY_TO_RECORD ~= false then
 		if isPlayerDead() == true then
@@ -317,6 +356,7 @@ function recordExemplars()
 	end
 end
 
+--flag to begin exemplar recording
 function readyToRecord()
 
 	gui.drawBox(10,100,130,120,0xFF000000,0xA0000000)
@@ -327,6 +367,11 @@ function readyToRecord()
 	end
 end
 
+------------------------------------------------------
+---------------END Exemplar fuctions------------------
+------------------------------------------------------
+
+--returns if a key has been pressed
 function checkKeyPress(keys)
 	for i=1, #keys, 1 do
 		if keys[i] == 1 then
@@ -336,6 +381,7 @@ function checkKeyPress(keys)
 	return false
 end
 
+--returns if the player is dead
 function isPlayerDead()
 	if memory.readbyte(0x000E) == 0x06 then
 		return true
@@ -343,6 +389,10 @@ function isPlayerDead()
 		return false
 	end
 end
+
+---------------------------------------------------------
+-----------Network Functions-----------------------------
+---------------------------------------------------------
 
 function randomFloat(lower, greater)
     return lower + math.random()  * (greater - lower);
@@ -380,7 +430,7 @@ function forwardPropigate()
 		for i = LOW_I, HIGH_I, 1 do
 			--console.log(I[i])
 			x = x + ( I[i] * w[i][j] )
-			y[j] = sigmod( x - wt[j] )
+			y[j] = sigmod( x - wt[j] , 4)
 		end
 	end
 	--hidden -> output
@@ -388,7 +438,7 @@ function forwardPropigate()
 		x = 0 
 		for j = LOW_J, HIGH_J , 1 do
 			x = x + ( y[j] * w[j][k] )
-			y[k] = sigmod( x - wt[k] )
+			y[k] = sigmod( x - wt[k] , 4 )
 		end
 	end
 end
@@ -447,6 +497,7 @@ function bipolarSigmod(x)
 	return round((2/math.pi) * math.atan(x),3)
 end
 
+
 function round(num, idp)
   local mult = 10^(idp or 0)
   return math.floor(num * mult + 0.5) / mult
@@ -472,6 +523,10 @@ function split(str, pat)
 end
 
 function learn(filename,iterations)
+	local file = io.open(LEARN_LOG,"a")
+	file:write('<?xml version="1.0" encoding="UTF-8"?>\n')
+	file:write('<Network_LOG>')
+	file:close()
 	for i = 1, iterations, 1 do 
 		for line in io.lines(filename) do
 			gui.drawBox(10,10,120,30,0xFF000000,0xA0000000)
@@ -499,12 +554,16 @@ function learn(filename,iterations)
 
 			backPropigate()
 
-			logNet(LEARN_LOG,"learn")
+			logNet_XML(LEARN_LOG,"learn")
 
 			emu.frameadvance() --to stop bizhawk from crashing becasue of not loading a new frame for two long.
 		end
 	end
-	StoreNetworkValues( NET_VAL )
+	local file = io.open(LEARN_LOG,"a")
+	file:write('</Network_LOG>')
+	file:close()
+	--StoreNetworkValues( NET_VAL )
+	StoreNetworkValues_XML( NET_VAL_XML )
 end
 
 function logNet(f,t)
@@ -524,6 +583,30 @@ function logNet(f,t)
 		end
 	end
 	file:write("\n")
+	file:close()
+end
+
+function logNet_XML(f,t)
+	local file = io.open(f,"a")
+	file:write("<Pass>\n")
+	file:write("<Input>")
+	for i = LOW_I, HIGH_I, 1 do
+		file:write(I[i])
+	end
+	file:write("</Input>\n")
+	file:write("<Net_Output>")
+	for k = LOW_K, HIGH_K, 1 do
+		file:write(y[k].."|")
+	end
+	file:write("</Net_Output>\n")
+	if t=="learn" then
+		file:write("<Exp_Output>")
+		for k = LOW_K, HIGH_K, 1 do
+			file:write(O[k].."|")
+		end
+		file:write("</Exp_Output>\n")
+	end
+	file:write("</Pass>\n")
 	file:close()
 end
 
@@ -552,6 +635,43 @@ function StoreNetworkValues( f )
 	for k = LOW_K, HIGH_K, 1 do
 		file:write(wt[k].."|")
 	end
+	file:close()
+end
+
+function StoreNetworkValues_XML( f )
+	local file = io.open(f,"w")
+	file:write('<?xml version="1.0" encoding="UTF-8"?>\n')
+	file:write('<Network>')
+	file:write('<IL_HL_Weights>\n')
+	for i = LOW_I, HIGH_I, 1 do
+		file:write('<i'..i..'>')
+		for j = LOW_J, HIGH_J , 1 do
+			file:write(w[i][j].."|")
+		end
+			file:write('</i'..i..'>\n')
+	end
+	file:write('<Tresholds>')
+	for j = LOW_J, HIGH_J, 1 do
+		file:write(wt[j].."|")
+	end
+	file:write('</Tresholds>\n')
+	file:write('</IL_HL_Weights>\n')
+
+	file:write('<HL_OL_Weights>\n')
+	for j = LOW_J, HIGH_J, 1 do
+		file:write('<j'..j..'>')
+		for k = LOW_K, HIGH_K, 1 do
+			file:write(w[j][k].."|")
+		end
+			file:write('</j'..j..'>\n')
+	end
+	file:write('<Tresholds>')
+	for k = LOW_K, HIGH_K, 1 do
+		file:write(wt[k].."|")
+	end
+	file:write('</Tresholds>\n')
+	file:write('</HL_OL_Weights>\n')
+	file:write('</Network>')
 	file:close()
 end
 
@@ -599,11 +719,14 @@ function exploit()
 		x = x + 1
 	end	
 
-	logNet(RUN_LOG)
+	logNet_XML(RUN_LOG)
 
 	return outputs
 end
 
+---------------------------------------------------------
+-----------END Network Functions-------------------------
+---------------------------------------------------------
 
 function printScreen(screenArray)
 	local currentRow = 1
@@ -675,7 +798,7 @@ function loadConfig(filename)
 	local config = parseConfig(filename)
 
 	TRAINING_FILE = config["TRAINING_FILE"]
-	RECORD_F = config["RECORD_F"]
+	RECORD_F = tonumber(config["RECORD_F"])
 	VIEW_RADIUS = config["VIEW_RADIUS"]
 	NUM_NUERONS = config["NUM_NUERONS"]
 	C = config["C"]
@@ -719,7 +842,6 @@ local curSel = 1
 function settingsUI()
 
 	local inputs = input.get()
-	--console.log(inputs["UpArrow"])
 
 	gui.drawBox(10,10,240, 240,0xFF000000,0xE1000000)
 	gui.drawText(12,20,"TRAINING_FILE: ",highlight(1,curSel),10,"Segoe UI")
@@ -738,9 +860,12 @@ function settingsUI()
 	gui.drawText(120,140,RATE,0xFFFFFF00,10,"Segoe UI")
 	gui.drawText(120,160,TRAIN_ITERATIONS,0xFFFFFF00,10,"Segoe UI")
 
-	gui.drawText(12,200,"Navigate: Up/Down",0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(110,200,"Edit: Enter",0xFFFFFFFF,10,"Segoe UI")
+	--gui.drawText(12,200,"Navigate: Up/Down",0xFFFFFFFF,10,"Segoe UI")
+	--gui.drawText(110,200,"Edit: Enter",0xFFFFFFFF,10,"Segoe UI")
 	gui.drawText(160,200,"Exit: Numpad 1",0xFFFFFFFF,10,"Segoe UI")
+
+	--not sure if iam going to allow users to edit from bizhawk
+	--unless i can find a way to disable the bizhawk hot keys while in a read keyboard function
 
 	if inputs["NumberPad1"] == true then
 		NUM_PAD1 = true
@@ -751,6 +876,7 @@ function settingsUI()
 		SETTINGS = toggleOption(SETTINGS)
 		NUM_PAD1 = false
 	end
+	--[[
 	--nav keys
 	if inputs["UpArrow"] == true then
 		UP_ARROW = true
@@ -769,6 +895,7 @@ function settingsUI()
 		curSel = toggleSel(curSel,maxSel,"DOWN")
 		DOWN_ARROW = false
 	end
+--]]
 
 end
 
@@ -809,7 +936,6 @@ while true do
 	elseif EXPLOIT_NET == "ON" then
 		--check if the user hits 5 again to end the net execute.
 		readNumpad()
-
 		joypad.set(exploit())
 		if isPlayerDead() then
 			loadSaveState(STATE_FILE)

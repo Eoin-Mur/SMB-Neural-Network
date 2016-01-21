@@ -1,7 +1,7 @@
 # My configuration file for the SMB_Supervised_Net lua script
 
 # Filename of the exemplar file used for training the network
-TRAINING_FILE ../DAT_Files/exemplars_Nov_24_12_31_03.dat
+TRAINING_FILE ../Exemplar_Files/exemplars_Jan_21_19_28_40.dat
 
 # number of frames the user can record exemplars for
 RECORD_F 1000
