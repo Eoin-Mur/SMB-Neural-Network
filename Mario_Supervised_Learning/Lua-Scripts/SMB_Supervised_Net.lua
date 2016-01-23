@@ -652,11 +652,11 @@ function StoreNetworkValues_XML( f )
 		end
 			file:write('</i'..i..'>\n')
 	end
-	file:write('<Tresholds>')
+	file:write('<iT>')
 	for j = LOW_J, HIGH_J, 1 do
 		file:write(wt[j].."|")
 	end
-	file:write('</Tresholds>\n')
+	file:write('</iT>\n')
 	file:write('</IL_HL_Weights>\n')
 
 	file:write('<HL_OL_Weights>\n')
@@ -667,11 +667,11 @@ function StoreNetworkValues_XML( f )
 		end
 			file:write('</j'..j..'>\n')
 	end
-	file:write('<Tresholds>')
+	file:write('<jT>')
 	for k = LOW_K, HIGH_K, 1 do
 		file:write(wt[k].."|")
 	end
-	file:write('</Tresholds>\n')
+	file:write('</jT>\n')
 	file:write('</HL_OL_Weights>\n')
 	file:write('</Network>')
 	file:close()
@@ -724,6 +724,56 @@ function exploit()
 	logNet_XML(RUN_LOG)
 
 	return outputs
+end
+
+function parseXMLNetvalues(file)
+	local e
+	local x
+	local index 
+	for line in io.lines(file) do
+		--input to hiden layer values
+		if line:match("<i%d>(.+)</i%d>") then
+			index = tonumber(line:match("<i(%d+)>"))
+			line = line:match("<i%d>(.+)</i%d>")
+			e = split(line,"|")
+			x = 1
+			for j = LOW_J, HIGH_J ,1 do
+				w[index][j] = e[x]
+				x = x + 1
+			end
+
+		--input to hidden layer thresholds
+		elseif line:match("<iT>(.+)</iT>") then
+			line = line:match("<iT>(.+)</iT>")
+			e = split(line,"|")
+			x = 1
+			for j = LOW_J, HIGH_J, 1 do
+				wt[j] = e[x]
+				x = x +1
+			end
+
+		--hiden to output layer
+		elseif line:match("<j%d>(.+)</j%d>") then
+			index = tonumber(line:match("<j(%d+)>"))
+			line = line:match("<j%d>(.+)</j%d>")
+			e = split(line,"|")
+			x = 1
+			for k = LOW_K, HIGH_K, 1 do
+				w[index][k] = e[x]
+				x = x +1
+			end
+
+		--hidden to output layer thresholds
+		elseif line:match("<jT>(.+)</jT>") then
+			line = line:match("<jT>(.+)</jT>")
+			e = split(line,"|")
+			x = 1
+			for k = LOW_K, HIGH_K, 1 do
+				wt[k] = e[x]
+				x = x +1
+			end
+		end
+	end
 end
 
 ---------------------------------------------------------
