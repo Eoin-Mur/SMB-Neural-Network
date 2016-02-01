@@ -732,9 +732,9 @@ function parseXMLNetvalues(file)
 	local index 
 	for line in io.lines(file) do
 		--input to hiden layer values
-		if line:match("<i%d>(.+)</i%d>") then
+		if line:match("<i%d+>(.+)</i%d+>") then
 			index = tonumber(line:match("<i(%d+)>"))
-			line = line:match("<i%d>(.+)</i%d>")
+			line = line:match("<i%d+>(.+)</i%d+>")
 			e = split(line,"|")
 			x = 1
 			for j = LOW_J, HIGH_J ,1 do
@@ -753,9 +753,9 @@ function parseXMLNetvalues(file)
 			end
 
 		--hiden to output layer
-		elseif line:match("<j%d>(.+)</j%d>") then
+		elseif line:match("<j%d+>(.+)</j%d+>") then
 			index = tonumber(line:match("<j(%d+)>"))
-			line = line:match("<j%d>(.+)</j%d>")
+			line = line:match("<j%d+>(.+)</j%d+>")
 			e = split(line,"|")
 			x = 1
 			for k = LOW_K, HIGH_K, 1 do
@@ -978,6 +978,15 @@ end
 loadConfig("../config.txt")
 
 InitNetwork()
+
+--[[
+	Test to verify parseing net values successfull.
+
+StoreNetworkValues_XML( "../Network_Values/parseTestPrev2.xml" )
+parseXMLNetvalues("../Network_Values/NETVal_Jan_25_18_35_15.xml")
+StoreNetworkValues_XML( "../Network_Values/parseTestAfter2.xml" )
+
+--]]
 
 while true do
 	if SHOW_DATA == "ON" then

@@ -11,7 +11,7 @@ ________________________________________________________________________
 
 5. network functionality															|	Done
 
-6. Write network values to file												|	Done/Needs better data struct(may use xml or json?)
+6. Write network values to file												|	Done/Needs better data struct(may use xml or json?) Done
 
 7. User interface finalisation												|	Done
 
