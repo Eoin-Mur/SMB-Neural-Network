@@ -4,6 +4,7 @@ local NeuralNet= {
 	NET_VAL = "../Network_Values/NETVal_"..os.date("%b_%d_%H_%M_%S")..".dat",
 	NET_VAL_XML = "../Network_Values/NETVal_"..os.date("%b_%d_%H_%M_%S")..".xml",
 	TRAIN_ITERATIONS,
+	TRAINING_FILE,
 	NUM_INPUTS,  
 	NUM_NUERONS, --add to config
 	NUM_OUTPUTS = 6,
@@ -46,7 +47,7 @@ end
 
 function NeuralNet.sigmod(x,r)
 	if r ~= nil then
-		return round((1/(1+math.exp(-4.9*x))),r);
+		return NeuralNet.round((1/(1+math.exp(-4.9*x))),r);
 	else
 		return 1/(1+math.exp(-4.9*x))
 	end
@@ -56,7 +57,7 @@ function NeuralNet.bipolarSigmod(x)
 	return round((2/math.pi) * math.atan(x),3)
 end
 
-function NeuralNet:round(num, idp)
+function NeuralNet.round(num, idp)
   local mult = 10^(idp or 0)
   return math.floor(num * mult + 0.5) / mult
 end
@@ -114,7 +115,7 @@ function NeuralNet.forwardPropigate()
 		for i = NeuralNet.LOW_I, NeuralNet.HIGH_I, 1 do
 			--console.log(I[i])
 			x = x + ( NeuralNet.I[i] * NeuralNet.w[i][j] )
-			NeuralNet.y[j] = NeuralNet.sigmod( x - NeuralNet.wt[j] )
+			NeuralNet.y[j] = NeuralNet.sigmod( x - NeuralNet.wt[j])
 		end
 	end
 	--hidden -> output
@@ -122,7 +123,7 @@ function NeuralNet.forwardPropigate()
 		x = 0 
 		for j = NeuralNet.LOW_J, NeuralNet.HIGH_J , 1 do
 			x = x + ( NeuralNet.y[j] * NeuralNet.w[j][k] )
-			NeuralNet.y[k] = NeuralNet.sigmod( x - NeuralNet.wt[k] )
+			NeuralNet.y[k] = NeuralNet.sigmod( x - NeuralNet.wt[k])
 		end
 	end
 end
@@ -309,9 +310,15 @@ function NeuralNet.StoreNetworkValues_XML( f )
 end
 
 function NeuralNet.learn(filename,iterations)
+	local file = io.open(NeuralNet.LEARN_LOG,"a")
+	file:write('<?xml version="1.0" encoding="UTF-8"?>\n')
+	file:write('<?xml-stylesheet type="text/xsl" href="training_style.xsl"?>')
+	file:write('<Network_LOG>')
+	file:close()
 	print("\nStarting Trainning for exemplars in file:"..filename)
 	print("Running BP for "..iterations.." iterations")
 	for i = 1, iterations, 1 do 
+		print("Iteration: "..i)
 		for line in io.lines(filename) do
 
 			local s1 = string.sub(line,1,string.find(line,";") -1)
@@ -340,7 +347,11 @@ function NeuralNet.learn(filename,iterations)
 		end
 	end
 	print("Finished Trainning\n Values Strored in:"..NeuralNet.NET_VAL_XML)
+	local file = io.open(NeuralNet.LEARN_LOG,"a")
+	file:write('</Network_LOG>')
+	file:close()
 	NeuralNet.StoreNetworkValues_XML( NeuralNet.NET_VAL_XML )
+
 end
 
 function NeuralNet.readVarsFromUsr()
@@ -386,7 +397,7 @@ function NeuralNet.loadConfig(filename)
 	NeuralNet.C = config["C"]
 	NeuralNet.RATE = config["RATE"]
 	NeuralNet.TRAIN_ITERATIONS = config["TRAIN_ITERATIONS"]
-
+	NeuralNet.TRAINING_FILE = config["TRAINING_FILE"]
 	NeuralNet.NUM_INPUTS = math.floor((NeuralNet.VIEW_RADIUS * 2 + 1) * (NeuralNet.VIEW_RADIUS * 2 + 1)) 
 
 	NeuralNet.LOW_I = 1
@@ -399,13 +410,10 @@ function NeuralNet.loadConfig(filename)
 end
 
 
-local it = 1 
-local file = "../Exemplar_Files/exemplars_Feb_01_10_13_12.dat"
-
 NeuralNet.loadConfig("../config.txt")
 
 NeuralNet.InitNetwork()
 
-NeuralNet.learn(file,NeuralNet.TRAIN_ITERATIONS)
+NeuralNet.learn(NeuralNet.TRAINING_FILE,NeuralNet.TRAIN_ITERATIONS)
 
 

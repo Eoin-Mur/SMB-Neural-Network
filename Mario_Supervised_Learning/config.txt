@@ -1,9 +1,11 @@
 # My configuration file for the SMB_Supervised_Net lua script
 
 # Filename of the exemplar file used for training the network
-# TRAINING_FILE ../Exemplar_Files/exemplars_Jan_21_19_28_40.dat
+# TRAINING_FILE ../Exemplar_Files/exemplars_Feb_02_07_51_44.dat
 
-TRAINING_FILE ../Exemplar_Files/exemplars_Feb_01_10_13_12.dat
+TRAINING_FILE ../Exemplar_Files/exemplars_Jan_21_19_28_40.dat
+
+# TRAINING_FILE ../Exemplar_Files/exemplars_Feb_01_10_13_12.dat
 # number of frames the user can record exemplars for
 RECORD_F 1000
 
@@ -21,7 +23,7 @@ C 0.1
 RATE 0.8
 
 # number of times the network trains from the exemplar file
-TRAIN_ITERATIONS 2
+TRAIN_ITERATIONS 100
 
 # xml file with the trained network values
-NET_VALUES_FILE ../Network_Values/NETVal_Jan_25_18_35_15.xml
+NET_VALUES_FILE ../Network_Values/NETVal_100_Iterations.xml

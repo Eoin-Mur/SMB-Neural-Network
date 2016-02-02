@@ -19,9 +19,9 @@ ________________________________________________________________________
 
 8. Settngs interface																	|	Done
 
-9. functionality to modify config from settings ui		| Inprogess
+9. functionality to modify config from settings ui		| ON HOLD
 
-10. graphical display of network											|	...
+10. graphical display of network											|	Done
 
 11. Examine the exemplars inputs(Pre processing) 			| ...
 	NOTE: Jump state problem!!!!!												

@@ -1,8 +1,8 @@
 
 
-local STATE_FILE = "C:/Users/eoinm_000/Documents/GitHub/fourth-year-project/Mario_Supervised_Learning/Save_States/SMB_L1-1_laptop.State" --laptop
+--local STATE_FILE = "C:/Users/eoinm_000/Documents/GitHub/fourth-year-project/Mario_Supervised_Learning/Save_States/SMB_L1-1_laptop.State" --laptop
 
---local STATE_FILE = "C:/Users/Eoin/Documents/GitHub/fourth-year-project/Mario_Supervised_Learning/Save_States/SMB_L1-1.State" -- desktop
+local STATE_FILE = "C:/Users/Eoin/Documents/GitHub/fourth-year-project/Mario_Supervised_Learning/Save_States/SMB_L1-1.State" -- desktop
 local TOGGLE_UI = "ON" 
 local RECORD_EXEMPLARS = "OFF"
 local EXPLOIT_NET = "OFF"
@@ -432,7 +432,7 @@ function forwardPropigate()
 		for i = LOW_I, HIGH_I, 1 do
 			--console.log(I[i])
 			x = x + ( I[i] * w[i][j] )
-			y[j] = sigmod( x - wt[j] , 4)
+			y[j] = sigmod( x - wt[j] )
 		end
 	end
 	--hidden -> output
@@ -440,7 +440,7 @@ function forwardPropigate()
 		x = 0 
 		for j = LOW_J, HIGH_J , 1 do
 			x = x + ( y[j] * w[j][k] )
-			y[k] = sigmod( x - wt[k] , 4 )
+			y[k] = sigmod( x - wt[k] )
 		end
 	end
 end
@@ -728,6 +728,7 @@ function exploit()
 end
 
 function parseXMLNetvalues(file)
+	console.log("Loading net values")
 	local e
 	local x
 	local index 
@@ -775,6 +776,7 @@ function parseXMLNetvalues(file)
 			end
 		end
 	end
+	console.log("finshed Loading Net values")
 end
 
 ---------------------------------------------------------
@@ -877,7 +879,6 @@ end
 
 function loadConfig(filename)
 	local config = parseConfig(filename)
-	console.log(config)
 	NET_VALUES_FILE = config["NET_VALUES_FILE"]
 	TRAINING_FILE = config["TRAINING_FILE"]
 	RECORD_F = tonumber(config["RECORD_F"])
