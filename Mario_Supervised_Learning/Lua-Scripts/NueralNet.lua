@@ -1,8 +1,9 @@
 local NeuralNet= {
-	LEARN_LOG = "../DAT_Files/NETLearn_"..os.date("%b_%d_%H_%M_%S")..".dat",
-	RUN_LOG = "../DAT_Files/NETRun_"..os.date("%b_%d_%H_%M_%S")..".dat",
-	NET_VAL = "../DAT_Files/NETVal_"..os.date("%b_%d_%H_%M_%S")..".dat",
-
+	LEARN_LOG = "../Training_Logs/NETLearn_"..os.date("%b_%d_%H_%M_%S")..".xml",
+	RUN_LOG = "../Run_Logs/NETRun_"..os.date("%b_%d_%H_%M_%S")..".xml",
+	NET_VAL = "../Network_Values/NETVal_"..os.date("%b_%d_%H_%M_%S")..".dat",
+	NET_VAL_XML = "../Network_Values/NETVal_"..os.date("%b_%d_%H_%M_%S")..".xml",
+	TRAIN_ITERATIONS,
 	NUM_INPUTS,  
 	NUM_NUERONS, --add to config
 	NUM_OUTPUTS = 6,
@@ -81,6 +82,7 @@ end
 
 
 function NeuralNet.InitNetwork()
+	print("Initiating Network!")
 	for i = NeuralNet.LOW_I, NeuralNet.HIGH_I, 1 do
 		NeuralNet.w[i] = {}
 		for j = NeuralNet.LOW_J, NeuralNet.HIGH_J , 1 do
@@ -192,7 +194,7 @@ function NeuralNet.run(inputs)
 		x = x + 1
 	end	
 
-	NeuralNet.logNet(NeuralNet.RUN_LOG)
+	NeuralNet.logNet_XML(NeuralNet.RUN_LOG)
 
 	return outputs
 end
@@ -214,6 +216,30 @@ function NeuralNet.logNet(f,t)
 		end
 	end
 	file:write("\n")
+	file:close()
+end
+
+function NeuralNet.logNet_XML(f,t)
+	local file = io.open(f,"a")
+	file:write("<Pass>\n")
+	file:write("<Input>")
+	for i = NeuralNet.LOW_I, NeuralNet.HIGH_I, 1 do
+		file:write(NeuralNet.I[i])
+	end
+	file:write("</Input>\n")
+	file:write("<Net_Output>")
+	for k = NeuralNet.LOW_K, NeuralNet.HIGH_K, 1 do
+		file:write(NeuralNet.y[k].."|")
+	end
+	file:write("</Net_Output>\n")
+	if t=="learn" then
+		file:write("<Exp_Output>")
+		for k = NeuralNet.LOW_K, NeuralNet.HIGH_K, 1 do
+			file:write(NeuralNet.O[k].."|")
+		end
+		file:write("</Exp_Output>\n")
+	end
+	file:write("</Pass>\n")
 	file:close()
 end
 
@@ -245,11 +271,48 @@ function NeuralNet.StoreNetworkValues( f )
 	file:close()
 end
 
+function NeuralNet.StoreNetworkValues_XML( f )
+	local file = io.open(f,"w")
+	file:write('<?xml version="1.0" encoding="UTF-8"?>\n')
+	file:write('<Network>')
+	file:write('<IL_HL_Weights>\n')
+	for i = NeuralNet.LOW_I, NeuralNet.HIGH_I, 1 do
+		file:write('<i'..i..'>')
+		for j = NeuralNet.LOW_J, NeuralNet.HIGH_J , 1 do
+			file:write(NeuralNet.w[i][j].."|")
+		end
+			file:write('</i'..i..'>\n')
+	end
+	file:write('<iT>')
+	for j = NeuralNet.LOW_J, NeuralNet.HIGH_J, 1 do
+		file:write(NeuralNet.wt[j].."|")
+	end
+	file:write('</iT>\n')
+	file:write('</IL_HL_Weights>\n')
+
+	file:write('<HL_OL_Weights>\n')
+	for j = NeuralNet.LOW_J, NeuralNet.HIGH_J, 1 do
+		file:write('<j'..j..'>')
+		for k = NeuralNet.LOW_K, NeuralNet.HIGH_K, 1 do
+			file:write(NeuralNet.w[j][k].."|")
+		end
+			file:write('</j'..j..'>\n')
+	end
+	file:write('<jT>')
+	for k = NeuralNet.LOW_K, NeuralNet.HIGH_K, 1 do
+		file:write(NeuralNet.wt[k].."|")
+	end
+	file:write('</jT>\n')
+	file:write('</HL_OL_Weights>\n')
+	file:write('</Network>')
+	file:close()
+end
+
 function NeuralNet.learn(filename,iterations)
+	print("\nStarting Trainning for exemplars in file:"..filename)
+	print("Running BP for "..iterations.." iterations")
 	for i = 1, iterations, 1 do 
 		for line in io.lines(filename) do
-			gui.drawBox(10,10,120,30,0xFF000000,0xA0000000)
-			gui.drawText(10,12,"TRAINING NETWORK!"..i,0xFFFF0000,10,"Segoe UI")
 
 			local s1 = string.sub(line,1,string.find(line,";") -1)
 			local s2 = string.sub(line,string.find(line,";")+1,string.len(line))
@@ -273,10 +336,76 @@ function NeuralNet.learn(filename,iterations)
 
 			NeuralNet.backPropigate()
 
-			NeuralNet.logNet(NeuralNet.LEARN_LOG,"learn")
-
-			emu.frameadvance() --to stop bizhawk from crashing becasue of not loading a new frame for two long.
+			NeuralNet.logNet_XML(NeuralNet.LEARN_LOG,"learn")
 		end
 	end
-	NeuralNet.StoreNetworkValues( NeuralNet.NET_VAL )
+	print("Finished Trainning\n Values Strored in:"..NeuralNet.NET_VAL_XML)
+	NeuralNet.StoreNetworkValues_XML( NeuralNet.NET_VAL_XML )
 end
+
+function NeuralNet.readVarsFromUsr()
+	io.write("Enter number of inputs:")
+	NeuralNet.NUM_INPUTS = io.read()
+	io.write("Enter Number of nuerons:")
+	NeuralNet.NUM_NUERONS = io.read()
+	NeuralNet.NET_TOTAL = NeuralNet.NUM_INPUTS + NeuralNet.NUM_NUERONS + NeuralNet.NUM_OUTPUTS
+	print(NeuralNet.NUM_INPUTS)
+	NeuralNet.LOW_I = 1
+	NeuralNet.HIGH_I = NeuralNet.NUM_INPUTS
+	NeuralNet.LOW_J = NeuralNet.NUM_INPUTS + 1
+	NeuralNet.HIGH_J = NeuralNet.NUM_INPUTS + NeuralNet.NUM_NUERONS
+	NeuralNet.LOW_K = NeuralNet.NUM_INPUTS + NeuralNet.NUM_NUERONS + 1
+	NeuralNet.HIGH_K = NeuralNet.NUM_INPUTS + NeuralNet.NUM_NUERONS + NeuralNet.NUM_OUTPUTS
+
+	io.write("Enter the value for C constant:")
+	NeuralNet.C = io.read()
+
+	io.write("Enter the values for the learning rate:")
+	NeuralNet.RATE = io.read()
+
+end
+
+function NeuralNet.parseConfig(filename)
+	local config = {}
+	for line in io.lines(filename) do
+		line = line:match("%s*(.+)") -- only read in lines that have characters 
+		if line and line:sub(1,1) ~= "#" and line:sub(1,1) ~= ";" then 
+			option = line:match("(.*)%s+") --string of any char's followed by one or more space
+			value = line:match("%s+(.*)") -- all characters after one or more space
+			config[option] = value
+		end
+	end
+	return config
+end
+
+function NeuralNet.loadConfig(filename)
+	print("Loading Values from config file!")
+	local config = NeuralNet.parseConfig(filename)
+	NeuralNet.VIEW_RADIUS = config["VIEW_RADIUS"]
+	NeuralNet.NUM_NUERONS = config["NUM_NUERONS"]
+	NeuralNet.C = config["C"]
+	NeuralNet.RATE = config["RATE"]
+	NeuralNet.TRAIN_ITERATIONS = config["TRAIN_ITERATIONS"]
+
+	NeuralNet.NUM_INPUTS = math.floor((NeuralNet.VIEW_RADIUS * 2 + 1) * (NeuralNet.VIEW_RADIUS * 2 + 1)) 
+
+	NeuralNet.LOW_I = 1
+	NeuralNet.HIGH_I = NeuralNet.NUM_INPUTS
+	NeuralNet.LOW_J = NeuralNet.NUM_INPUTS + 1
+	NeuralNet.HIGH_J = NeuralNet.NUM_INPUTS + NeuralNet.NUM_NUERONS
+	NeuralNet.LOW_K = NeuralNet.NUM_INPUTS + NeuralNet.NUM_NUERONS + 1
+	NeuralNet.HIGH_K = NeuralNet.NUM_INPUTS + NeuralNet.NUM_NUERONS + NeuralNet.NUM_OUTPUTS
+
+end
+
+
+local it = 1 
+local file = "../Exemplar_Files/exemplars_Feb_01_10_13_12.dat"
+
+NeuralNet.loadConfig("../config.txt")
+
+NeuralNet.InitNetwork()
+
+NeuralNet.learn(file,NeuralNet.TRAIN_ITERATIONS)
+
+

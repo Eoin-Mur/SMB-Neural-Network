@@ -40,9 +40,9 @@ local keyboard = {
 	NUM7,
 	NUM8,
 	NUM9,
-	SHIFT_MINUS,
+	UNDERSCORE,
 	PERIOD,
-	SHIFT_SEMI.
+	COLON,
 	SLASH
 
 }
@@ -50,7 +50,7 @@ local keyboard = {
 
 --"Shift+Semicolon": "True" 
 --"Slash": "True"
---"Shift_Minus"
+--"Shift+Minus"
 --"Period": "True"
 
 function keyboard.readKeyPress(capital)
@@ -421,4 +421,145 @@ function keyboard.readKeyPress(capital)
 		Z = false
 	end
 
+	----------------0-------------------
+	if inputs["NumberPad0"] == true then
+		NUM0 = true
+	end
+
+	if inputs["NumberPad0"] == nil and NUM1 == true then
+		return 0
+		NUM0 = false
+	end
+
+	----------------1-------------------
+	if inputs["NumberPad1"] == true then
+		NUM1 = true
+	end
+
+	if inputs["NumberPad1"] == nil and NUM1 == true then
+		return 1
+		NUM1 = false
+	end
+
+	----------------2-------------------
+	if inputs["NumberPad2"] == true then
+		NUM2 = true
+	end
+
+	if inputs["NumberPad2"] == nil and NUM2 == true then
+		return 2
+		NUM2 = false
+	end
+
+	----------------3-------------------
+	if inputs["NumberPad3"] == true then
+		NUM3 = true
+	end
+
+	if inputs["NumberPad3"] == nil and NUM3 == true then
+		return 3
+		NUM3 = false
+	end
+
+	----------------4-------------------
+	if inputs["NumberPad4"] == true then
+		NUM4 = true
+	end
+
+	if inputs["NumberPad4"] == nil and NUM4 == true then
+		return 4
+		NUM4 = false
+	end
+
+	----------------5-------------------
+	if inputs["NumberPad5"] == true then
+		NUM5 = true
+	end
+
+	if inputs["NumberPad5"] == nil and NUM5 == true then
+		return 5
+		NUM5 = false
+	end
+
+	----------------6-------------------
+	if inputs["NumberPad6"] == true then
+		NUM6 = true
+	end
+
+	if inputs["NumberPad6"] == nil and NUM6 == true then
+		return 6
+		NUM6 = false
+	end
+
+	----------------7-------------------
+	if inputs["Numberad7"] == true then
+		NUM7 = true
+	end
+
+	if inputs["NumberPad7"] == nil and NUM7 == true then
+		return 7
+		NUM7 = false
+	end
+
+	----------------8------------------
+	if inputs["NumberPad8"] == true then
+		NUM8 = true
+	end
+
+	if inputs["NumberPad8"] == nil and NUM8 == true then
+		return 8
+		NUM8 = false
+	end
+
+	----------------9-------------------
+	if inputs["NumberPad9"] == true then
+		NUM9 = true
+	end
+
+	if inputs["NumberPad9"] == nil and NUM9 == true then
+		return 9
+		NUM9 = false
+	end
+
+	----------------underscore-------------------
+	if inputs["Shift+Minus"] == true then
+		UNDERSCORE = true
+	end
+
+	if inputs["Shift+Minus"] == nil and UNDERSCORE == true then
+		return "_"
+		UNDERSCORE = false
+	end
+
+	----------------PERIOD-------------------
+	if inputs["PERIOD"] == true then
+		PERIOD = true
+	end
+
+	if inputs["PERIOD"] == nil and PERIOD == true then
+		return "."
+		PERIOD = false
+	end
+
+	----------------SLASH-------------------
+	if inputs["SLASH"] == true then
+		SLASH = true
+	end
+
+	if inputs["SLASH"] == nil and SLASH == true then
+		return "/"
+		SLASH = false
+	end
+
+	----------------PERIOD-------------------
+	if inputs["Shift+Semicolon"] == true then
+		COLON = true
+	end
+
+	if inputs["Shift+Semicolon"] == nil and COLON == true then
+		return ":"
+		COLON = false
+	end
 end
+
+return keyboard

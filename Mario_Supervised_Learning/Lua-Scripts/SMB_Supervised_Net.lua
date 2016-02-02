@@ -1,8 +1,8 @@
 
 
---local STATE_FILE = "C:/Users/eoinm_000/Documents/GitHub/fourth-year-project/Mario_Supervised_Learning/Save_States/SMB_L1-1_laptop.State" --laptop
+local STATE_FILE = "C:/Users/eoinm_000/Documents/GitHub/fourth-year-project/Mario_Supervised_Learning/Save_States/SMB_L1-1_laptop.State" --laptop
 
-local STATE_FILE = "C:/Users/Eoin/Documents/GitHub/fourth-year-project/Mario_Supervised_Learning/Save_States/SMB_L1-1.State" -- desktop
+--local STATE_FILE = "C:/Users/Eoin/Documents/GitHub/fourth-year-project/Mario_Supervised_Learning/Save_States/SMB_L1-1.State" -- desktop
 local TOGGLE_UI = "ON" 
 local RECORD_EXEMPLARS = "OFF"
 local EXPLOIT_NET = "OFF"
@@ -10,7 +10,7 @@ local SHOW_DATA = "OFF"
 local SETTINGS = "OFF"
 local READY_TO_RECORD = false
 local EXEMPLAR_FILENAME
-local NUM_PAD1, NUM_PAD2, NUM_PAD3, NUM_PAD4, NUM_PAD5, NUM_PAD0, NUM_PAD6
+local NUM_PAD1, NUM_PAD2, NUM_PAD3, NUM_PAD4, NUM_PAD5, NUM_PAD0, NUM_PAD6,ESCAPE, RETURN
 local UP_ARROW,DOWN_ARROW
 local RECORD_F --add to config
 local ELAPSED_F = 0
@@ -19,8 +19,9 @@ local PLAYER_X, PLAYER_Y
 local PREV_EXEMPLAR = "0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|1|1|1|1|1|1|1|1|0|1|1|1|1|1|1|1|1|0|0|0|0|0|0|0|0|0"
 local LEARN_LOG = "../Training_Logs/NETLearn_"..os.date("%b_%d_%H_%M_%S")..".xml"
 local RUN_LOG = "../Run_Logs/NETRun_"..os.date("%b_%d_%H_%M_%S")..".xml"
-local NET_VAL = "../Network_Values/NETVal_"..os.date("%b_%d_%H_%M_%S")..".dat"
-local NET_VAL_XML = "../Network_Values/NETVal_"..os.date("%b_%d_%H_%M_%S")..".xml"
+--local NET_VAL = "../Network_Values/NETVal_"..os.date("%b_%d_%H_%M_%S")..".dat"
+--local NET_VAL_XML = "../Network_Values/NETVal_"..os.date("%b_%d_%H_%M_%S")..".xml"
+local NET_VALUES_FILE 
 local TRAINING_FILE
 
 --Network variables---
@@ -101,7 +102,7 @@ function readNumpad()
 	end
 
 	if inputs["NumberPad4"] == nil and NUM_PAD4 == true then
-		learn(TRAINING_FILE,TRAIN_ITERATIONS)
+		parseXMLNetvalues(NET_VALUES_FILE)
 		NUM_PAD4 = false
 	end
 
@@ -170,7 +171,7 @@ function drawUI()
 			gui.drawText(60,32,"NUM PAD 2",0xFFFFFF00,10,"Segoe UI")
 			gui.drawText(10,52,"Record: ",0xFFFFFFFF,10,"Segoe UI")
 			gui.drawText(60,52,"NUM PAD 3",0xFFFFFF00,10,"Segoe UI")
-			gui.drawText(10,72,"Learn: ",0xFFFFFFFF,10,"Segoe UI")
+			gui.drawText(10,72,"Load Net: ",0xFFFFFFFF,10,"Segoe UI")
 			gui.drawText(60,72,"NUM PAD 4",0xFFFFFF00,10,"Segoe UI")
 			gui.drawText(10,92,"Exploit: ",0xFFFFFFFF,10,"Segoe UI")
 			gui.drawText(60,92,"NUM PAD 5",0xFFFFFF00,10,"Segoe UI")
@@ -700,7 +701,7 @@ function exploit()
 
 	local inputs = getScreen(VIEW_RADIUS)
 
-	printScreen(inputs)
+	drawData(false)
 	local x = 1 
 	for i = LOW_I, HIGH_I, 1 do
 		I[i] = inputs[x]
@@ -783,10 +784,18 @@ end
 function printScreen(screenArray)
 	local currentRow = 1
 	local currentColumn = 1
-	gui.drawBox(10,10,10*((VIEW_RADIUS*2)+2),10*((VIEW_RADIUS*2)+2),0xFF000000,0xA0000000)
+	gui.drawBox(10,10,10*((VIEW_RADIUS*2)+2),10*((VIEW_RADIUS*2)+2),0xFF000000,0xFFFFFFFF)
 	for i = 1, #screenArray, 1 do
-		gui.drawText(10*currentColumn,10*currentRow,screenArray[i],0xFFFFFFFF,10,"Segoe UI")
+		if screenArray[i] == 0 then
+			gui.drawBox(10*currentColumn,10*currentRow,(10*currentColumn)+10,(10*currentRow)+10,0xFF000000,0x00000000)
+		elseif screenArray[i] == 1 then
+			gui.drawBox(10*currentColumn,10*currentRow,(10*currentColumn)+10,(10*currentRow)+10,0xFF000000,0xFFFFFF00)
+		else
+			gui.drawBox(10*currentColumn,10*currentRow,(10*currentColumn)+10,(10*currentRow)+10,0xFF00000,0xFFFF0000)
+		end
+		--gui.drawText(10*currentColumn,10*currentRow,screenArray[i],0xFFFFFFFF,10,"Segoe UI")
 		currentColumn = currentColumn + 1
+
 		if i % ((VIEW_RADIUS*2)+1) == 0 and i ~= 1 then
 			currentRow = currentRow + 1
 			currentColumn = 1
@@ -794,34 +803,49 @@ function printScreen(screenArray)
 	end
 end
 
-function drawData()
+function drawData(drawPos)
 	printScreen(getScreen(VIEW_RADIUS))
 
 	getPlayerPosition()
 	getEnemyScreenPositions()
 
-	gui.drawBox(150,10,255,140,0xFF000000,0xA0000000)
-	gui.drawText(152,12,"PlayerX   : "..PLAYER_X,0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(152,22,"PlayerY   : "..PLAYER_Y,0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(152,32,"Enemy1X: "..enemyPositons[1]["x"],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(152,42,"Enemy1Y: "..enemyPositons[1]["y"],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(152,52,"Enemy2X: "..enemyPositons[2]["x"],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(152,62,"Enemy2Y: "..enemyPositons[2]["y"],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(152,72,"Enemy3X: "..enemyPositons[3]["x"],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(152,82,"Enemy3Y: "..enemyPositons[3]["y"],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(152,92,"Enemy4X: "..enemyPositons[4]["x"],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(152,102,"Enemy4Y: "..enemyPositons[4]["y"],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(152,112,"Enemy5X: "..enemyPositons[5]["x"],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(152,122,"Enemy5Y: "..enemyPositons[5]["y"],0xFFFFFFFF,10,"Segoe UI")
-
+	if drawPos == true then
+		gui.drawBox(150,10,255,140,0xFF000000,0xA0000000)
+		gui.drawText(152,12,"PlayerX   : "..PLAYER_X,0xFFFFFFFF,10,"Segoe UI")
+		gui.drawText(152,22,"PlayerY   : "..PLAYER_Y,0xFFFFFFFF,10,"Segoe UI")
+		gui.drawText(152,32,"Enemy1X: "..enemyPositons[1]["x"],0xFFFFFFFF,10,"Segoe UI")
+		gui.drawText(152,42,"Enemy1Y: "..enemyPositons[1]["y"],0xFFFFFFFF,10,"Segoe UI")
+		gui.drawText(152,52,"Enemy2X: "..enemyPositons[2]["x"],0xFFFFFFFF,10,"Segoe UI")
+		gui.drawText(152,62,"Enemy2Y: "..enemyPositons[2]["y"],0xFFFFFFFF,10,"Segoe UI")
+		gui.drawText(152,72,"Enemy3X: "..enemyPositons[3]["x"],0xFFFFFFFF,10,"Segoe UI")
+		gui.drawText(152,82,"Enemy3Y: "..enemyPositons[3]["y"],0xFFFFFFFF,10,"Segoe UI")
+		gui.drawText(152,92,"Enemy4X: "..enemyPositons[4]["x"],0xFFFFFFFF,10,"Segoe UI")
+		gui.drawText(152,102,"Enemy4Y: "..enemyPositons[4]["y"],0xFFFFFFFF,10,"Segoe UI")
+		gui.drawText(152,112,"Enemy5X: "..enemyPositons[5]["x"],0xFFFFFFFF,10,"Segoe UI")
+		gui.drawText(152,122,"Enemy5Y: "..enemyPositons[5]["y"],0xFFFFFFFF,10,"Segoe UI")
+	end
 	outputs = getKeyPresses()
-	gui.drawBox(10,160,60,260,0xFF000000,0xA0000000)
-	gui.drawText(12,162,"A: "..outputs[1],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(12,172,"B: "..outputs[2],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(12,182,"Down: "..outputs[3],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(12,192,"Left: "..outputs[4],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(12,202,"Right: "..outputs[5],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(12,212,"Up: "..outputs[6],0xFFFFFFFF,10,"Segoe UI")
+
+	--controler output
+	gui.drawBox(150,30,250,70,0xFF000000,0xFFB8B8B8)
+	gui.drawRectangle(165,34,5,10,0xFF000000,highlightKey(outputs,6,0xFF000000)) --up
+	gui.drawRectangle(153,46,10,5,0xFF000000,highlightKey(outputs,4,0xFF000000)) --left
+	gui.drawRectangle(165,53,5,10,0xFF000000,highlightKey(outputs,3,0xFF000000)) --down
+	gui.drawRectangle(172,46,10,5,0xFF000000,highlightKey(outputs,5,0xFF000000)) --right
+	gui.drawRectangle(187,46,10,5,0xFF000000,0xFF000000) --select (not outputed)
+	gui.drawRectangle(202,46,10,5,0xFF000000,0xFF000000) --start (not outputed)
+	gui.drawEllipse(217,44,10,10,0xFF000000,highlightKey(outputs,2,0xFF000000)) --B
+	gui.drawEllipse(232,44,10,10,0xFF000000,highlightKey(outputs,1,0xFF000000)) --A
+
+
+	--gui.drawBox(150,10,210,80,0xFF000000,0xA0000000)
+	--gui.drawText(152,12,"A: "..outputs[1],0xFFFFFFFF,10,"Segoe UI")
+	--gui.drawText(152,22,"B: "..outputs[2],0xFFFFFFFF,10,"Segoe UI")
+	--gui.drawText(152,32,"Down: "..outputs[3],0xFFFFFFFF,10,"Segoe UI")
+	--gui.drawText(152,42,"Left: "..outputs[4],0xFFFFFFFF,10,"Segoe UI")
+	--gui.drawText(152,52,"Right: "..outputs[5],0xFFFFFFFF,10,"Segoe UI")
+	--gui.drawText(152,62,"Up: "..outputs[6],0xFFFFFFFF,10,"Segoe UI")
+
 	--gui.drawBox(190,10,255,150,0xFF000000,0xA0000000)
 	--gui.drawText(192,12,"1Loaded: "..enemysLoaded[1],0xFFFFFFFF,10,"Segoe UI")
 	--gui.drawText(192,22,"2Loaded: "..enemysLoaded[2],0xFFFFFFFF,10,"Segoe UI")
@@ -830,8 +854,13 @@ function drawData()
 	--gui.drawText(192,52,"5Loaded: "..enemysLoaded[5],0xFFFFFFFF,10,"Segoe UI")
 end	
 
---console.log(LEARN_LOG.."\n"..RUN_LOG)
---StoreNetworkValues("../DAT_Files/storeTest.dat")
+function highlightKey(outputs,key,defaultColour)
+	if outputs[key] == 1 then
+		return 0xFFFF0000
+	else
+		return defaultColour
+	end
+end
 
 function parseConfig(filename)
 	local config = {}
@@ -848,7 +877,8 @@ end
 
 function loadConfig(filename)
 	local config = parseConfig(filename)
-
+	console.log(config)
+	NET_VALUES_FILE = config["NET_VALUES_FILE"]
 	TRAINING_FILE = config["TRAINING_FILE"]
 	RECORD_F = tonumber(config["RECORD_F"])
 	VIEW_RADIUS = config["VIEW_RADIUS"]
@@ -894,7 +924,6 @@ local curSel = 1
 function settingsUI()
 
 	local inputs = input.get()
-
 	gui.drawBox(10,10,240, 240,0xFF000000,0xE1000000)
 	gui.drawText(12,20,"TRAINING_FILE: ",highlight(1,curSel),10,"Segoe UI")
 	gui.drawText(12,60,"RECORD_F: ",highlight(2,curSel),10,"Segoe UI")
@@ -903,6 +932,7 @@ function settingsUI()
 	gui.drawText(12,120,"C: ",highlight(5,curSel),10,"Segoe UI")
 	gui.drawText(12,140,"RATE: ",highlight(6,curSel),10,"Segoe UI")
 	gui.drawText(12,160,"TRAIN_ITERATIONS: ",highlight(7,curSel),10,"Segoe UI")
+	gui.drawText(12,180,"NET_VALUES_FILE:",highlight(8,curSel),10,"Segoe UI")
 
 	gui.drawText(24,40,TRAINING_FILE,0xFFFFFF00,10,"Segoe UI")
 	gui.drawText(120,60,RECORD_F,0xFFFFFF00,10,"Segoe UI")
@@ -911,24 +941,35 @@ function settingsUI()
 	gui.drawText(120,120,C,0xFFFFFF00,10,"Segoe UI")
 	gui.drawText(120,140,RATE,0xFFFFFF00,10,"Segoe UI")
 	gui.drawText(120,160,TRAIN_ITERATIONS,0xFFFFFF00,10,"Segoe UI")
-
+	gui.drawText(24,200,NET_VALUES_FILE,0xFFFFFF00,10,"Segoe UI")
 	--gui.drawText(12,200,"Navigate: Up/Down",0xFFFFFFFF,10,"Segoe UI")
 	--gui.drawText(110,200,"Edit: Enter",0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(160,200,"Exit: Numpad 1",0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(160,220,"Exit: Escape",0xFFFFFFFF,10,"Segoe UI")
 
 	--not sure if iam going to allow users to edit from bizhawk
 	--unless i can find a way to disable the bizhawk hot keys while in a read keyboard function
 
-	if inputs["NumberPad1"] == true then
-		NUM_PAD1 = true
+
+	if inputs["Escape"] == true then
+		ESCAPE = true
 	end
 
-	if inputs["NumberPad1"] == nil and NUM_PAD1 == true then
+	if inputs["Escape"] == nil and ESCAPE == true then
 		TOGGLE_UI = toggleOption(TOGGLE_UI)
 		SETTINGS = toggleOption(SETTINGS)
-		NUM_PAD1 = false
+		ESCAPE = false
 	end
-	--[[
+
+--[[
+	if inputs["Return"] == true then
+		RETURN = true
+	end
+
+	if inputs["Return"] == nil and RETURN == true then
+
+		RETURN = false
+	end
+
 	--nav keys
 	if inputs["UpArrow"] == true then
 		UP_ARROW = true
@@ -947,7 +988,7 @@ function settingsUI()
 		curSel = toggleSel(curSel,maxSel,"DOWN")
 		DOWN_ARROW = false
 	end
---]]
+	-]]
 
 end
 
@@ -979,18 +1020,17 @@ loadConfig("../config.txt")
 
 InitNetwork()
 
---[[
-	Test to verify parseing net values successfull.
 
+	--Test to verify parseing net values successfull.
+--[[
 StoreNetworkValues_XML( "../Network_Values/parseTestPrev2.xml" )
 parseXMLNetvalues("../Network_Values/NETVal_Jan_25_18_35_15.xml")
 StoreNetworkValues_XML( "../Network_Values/parseTestAfter2.xml" )
-
 --]]
 
 while true do
 	if SHOW_DATA == "ON" then
-		drawData()
+		drawData(false)
 	end
 	if RECORD_EXEMPLARS == "ON" then
 		recordExemplars()
