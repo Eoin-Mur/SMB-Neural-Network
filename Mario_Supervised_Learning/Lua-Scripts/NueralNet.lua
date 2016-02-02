@@ -8,6 +8,7 @@ local NeuralNet= {
 	NUM_INPUTS,  
 	NUM_NUERONS, --add to config
 	NUM_OUTPUTS = 6,
+	NET_VALUES_FILE,
 
 	NET_TOTAL, 
 	 
@@ -399,6 +400,7 @@ function NeuralNet.loadConfig(filename)
 	NeuralNet.TRAIN_ITERATIONS = config["TRAIN_ITERATIONS"]
 	NeuralNet.TRAINING_FILE = config["TRAINING_FILE"]
 	NeuralNet.NUM_INPUTS = math.floor((NeuralNet.VIEW_RADIUS * 2 + 1) * (NeuralNet.VIEW_RADIUS * 2 + 1)) 
+	NeuralNet.NET_VALUES_FILE = config["NET_VALUES_FILE"]
 
 	NeuralNet.LOW_I = 1
 	NeuralNet.HIGH_I = NeuralNet.NUM_INPUTS
@@ -409,10 +411,85 @@ function NeuralNet.loadConfig(filename)
 
 end
 
+function NeuralNet.split(str, pat)
+   local t = {}  
+   local fpat = "(.-)" .. pat
+   local last_end = 1
+   local s, e, cap = str:find(fpat, 1)
+   while s do
+      if s ~= 1 or cap ~= "" then
+	 			table.insert(t,cap)
+      end
+      last_end = e+1
+      s, e, cap = str:find(fpat, last_end)
+   end
+   if last_end <= #str then
+      cap = str:sub(last_end)
+      table.insert(t, cap)
+   end
+   return t
+end
+
+function NeuralNet.parseXMLNetvalues(file)
+	print("Loading network values from: "..file)
+	local e
+	local x
+	local index 
+	for line in io.lines(file) do
+		--input to hiden layer values
+		if line:match("<i%d+>(.+)</i%d+>") then
+			index = tonumber(line:match("<i(%d+)>"))
+			line = line:match("<i%d+>(.+)</i%d+>")
+			e = NeuralNet.split(line,"|")
+			x = 1
+			for j = NeuralNet.LOW_J, NeuralNet.HIGH_J ,1 do
+				NeuralNet.w[index][j] = e[x]
+				x = x + 1
+			end
+
+		--input to hidden layer thresholds
+		elseif line:match("<iT>(.+)</iT>") then
+			line = line:match("<iT>(.+)</iT>")
+			e = NeuralNet.split(line,"|")
+			x = 1
+			for j = NeuralNet.LOW_J, NeuralNet.HIGH_J, 1 do
+				NeuralNet.wt[j] = e[x]
+				x = x +1
+			end
+
+		--hiden to output layer
+		elseif line:match("<j%d+>(.+)</j%d+>") then
+			index = tonumber(line:match("<j(%d+)>"))
+			line = line:match("<j%d+>(.+)</j%d+>")
+			e = NeuralNet.split(line,"|")
+			x = 1
+			for k = NeuralNet.LOW_K, NeuralNet.HIGH_K, 1 do
+				NeuralNet.w[index][k] = e[x]
+				x = x +1
+			end
+
+		--hidden to output layer thresholds
+		elseif line:match("<jT>(.+)</jT>") then
+			line = line:match("<jT>(.+)</jT>")
+			e = NeuralNet.split(line,"|")
+			x = 1
+			for k = NeuralNet.LOW_K, NeuralNet.HIGH_K, 1 do
+				NeuralNet.wt[k] = e[x]
+				x = x +1
+			end
+		end
+	end
+	print("Finished loading values")
+end
 
 NeuralNet.loadConfig("../config.txt")
 
 NeuralNet.InitNetwork()
+
+io.write("Do you wish to load prev network values (Y/N) :")
+if io.read() == "Y" then
+	NeuralNet.parseXMLNetvalues(NeuralNet.NET_VALUES_FILE)
+end
 
 NeuralNet.learn(NeuralNet.TRAINING_FILE,NeuralNet.TRAIN_ITERATIONS)
 

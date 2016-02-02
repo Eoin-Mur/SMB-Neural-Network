@@ -112,6 +112,7 @@ function readNumpad()
 
 	if inputs["NumberPad5"] == nil and NUM_PAD5 == true then
 		if EXPLOIT_NET == "OFF" then
+			loadSaveState(STATE_FILE)
 			local file = io.open(RUN_LOG,"a")
 			file:write('<?xml version="1.0" encoding="UTF-8"?>\n')
 			file:write('<?xml-stylesheet type="text/xsl" href="run_style.xsl"?>\n')

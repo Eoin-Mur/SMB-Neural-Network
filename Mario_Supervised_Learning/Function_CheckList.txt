@@ -23,10 +23,11 @@ ________________________________________________________________________
 
 10. graphical display of network											|	Done
 
-11. Examine the exemplars inputs(Pre processing) 			| ...
+11. Examine the exemplars inputs(Pre processing) 			| SO CLOSE NOW!! NET IMPROVED DRAMITICALY WHEN REMOVED THE DUPLICATE EXEMPLARS!!!!!!!
+	
 	NOTE: Jump state problem!!!!!												
 
-12. Train the network																	| ...
+12. Train the network																	| WE ARE SO CLOSE LIKE 20 FRAMES AWAY FROM REACHING UNSEEN INPUTS!!!
 
 13. Please work and beat the first level!!!!!!!!!			| ??????????
 
