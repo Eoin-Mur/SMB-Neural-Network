@@ -6,7 +6,7 @@
 # Best Exemplar file yet!
 # TRAINING_FILE ../Exemplar_Files/exemplars_Jan_21_19_28_40.dat
 
-TRAINING_FILE ../Java_Files/exemplars_no_dupes.dat
+TRAINING_FILE ../Java_Files/exemplars_no_dupes_best_exemplar_file.dat
 # number of frames the user can record exemplars for
 RECORD_F 1000
 
@@ -28,5 +28,5 @@ TRAIN_ITERATIONS 100
 
 # xml file with the trained network values
 
-NET_VALUES_FILE ../Network_Values/NETVal_100_Iterations_No_Dupes.xml
+NET_VALUES_FILE ../Network_Values/NETVal_Feb_02_14_32_11.xml
 # NET_VALUES_FILE ../Network_Values/NETVal_100_Iterations.xml
