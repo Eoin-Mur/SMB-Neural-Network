@@ -97,7 +97,7 @@ class Examine_Exemplars
 
 	public static void main(String [] args)
 	{
-		String exemplarFile = "../Exemplar_Files/exemplars_Jan_21_19_28_40.dat";
+		String exemplarFile = "../Exemplar_Files/exemplars_Feb_04_14_30_49.dat";
 
 		System.out.println("Examining: "+exemplarFile);
 		countDistinctExemplars(exemplarFile);
