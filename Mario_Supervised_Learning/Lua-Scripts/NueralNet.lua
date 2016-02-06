@@ -1,8 +1,12 @@
+
+-- put it all in an object just because i wanted to learn more on how object orientated programing works in LUA
+-- pretty cool if i just put a return NueralNet at the bottom of this file i can load this object into other files 
+
 local NeuralNet= {
-	LEARN_LOG = "../Training_Logs/NETLearn_"..os.date("%b_%d_%H_%M_%S")..".xml",
-	RUN_LOG = "../Run_Logs/NETRun_"..os.date("%b_%d_%H_%M_%S")..".xml",
-	NET_VAL = "../Network_Values/NETVal_"..os.date("%b_%d_%H_%M_%S")..".dat",
-	NET_VAL_XML = "../Network_Values/NETVal_"..os.date("%b_%d_%H_%M_%S")..".xml",
+	LEARN_LOG = "../Training_Logs/NETLearn_"..os.date("%b-%d-%H-%M-%S")..".xml",
+	RUN_LOG = "../Run_Logs/NETRun_"..os.date("%b-%d-%H-%M-%S")..".xml",
+	NET_VAL = "../Network_Values/NETVal_"..os.date("%b-%d-%H-%M-%S")..".dat",
+	NET_VAL_XML = "../Network_Values/NETVal_"..os.date("%b-%d-%H-%M-%S")..".xml",
 	TRAIN_ITERATIONS,
 	TRAINING_FILE,
 	NUM_INPUTS,  
@@ -48,9 +52,9 @@ end
 
 function NeuralNet.sigmod(x,r)
 	if r ~= nil then
-		return NeuralNet.round((1/(1+math.exp(-4.9*x))),r);
+		return NeuralNet.round((1.0/(1+math.exp(-4.9*x))),r);
 	else
-		return 1/(1+math.exp(-4.9*x))
+		return 1.0/(1+math.exp(-4.9*x))
 	end
 end
 
@@ -129,11 +133,14 @@ function NeuralNet.forwardPropigate()
 	end
 end
 
+local totalError
+
 function NeuralNet.backPropigate()
 	local dw
 
 	for k = NeuralNet.LOW_K, NeuralNet.HIGH_K, 1 do
-		NeuralNet.dy[k] = NeuralNet.y[k] - NeuralNet.O[k];
+		NeuralNet.dy[k] = NeuralNet.y[k] - NeuralNet.O[k]
+		totalError = totalError + (0.5 * ( NeuralNet.dy[k] ^2)) 
 		NeuralNet.dx[k] = ( NeuralNet.dy[k] ) * NeuralNet.y[k] * (1-NeuralNet.y[k])
 	end
 
@@ -149,6 +156,7 @@ function NeuralNet.backPropigate()
 	for j = NeuralNet.LOW_J, NeuralNet.HIGH_J, 1 do
 		for k = NeuralNet.LOW_K, NeuralNet.HIGH_K, 1 do
 			dw = NeuralNet.dx[k] * NeuralNet.y[j]
+			--logError("outputLayerError.csv",NeuralNet.dx[k],dw)
 			NeuralNet.w[j][k] = NeuralNet.w[j][k] - (NeuralNet.RATE * dw)
 		end
 	end
@@ -156,6 +164,7 @@ function NeuralNet.backPropigate()
 	for i = NeuralNet.LOW_I, NeuralNet.HIGH_I, 1 do
 		for j = NeuralNet.LOW_J, NeuralNet.HIGH_J, 1 do
 			dw = NeuralNet.dx[j] * NeuralNet.I[i]
+			--logError("inputLayerError.csv",NeuralNet.dx[j],dw)
 			NeuralNet.w[i][j] = NeuralNet.w[i][j] - (NeuralNet.RATE * dw)
 		end 
 	end
@@ -169,6 +178,12 @@ function NeuralNet.backPropigate()
 		dw = NeuralNet.dx[j] * (-1)
 		NeuralNet.wt[j] = NeuralNet.wt[j] - ( NeuralNet.RATE * dw)
 	end
+end
+
+function logError(filename,E,epoch)
+	local file = io.open(filename,'a')
+	file:write(E..","..epoch.."\n")
+	file:close()
 end
 
 function NeuralNet.run(inputs)
@@ -310,7 +325,7 @@ function NeuralNet.StoreNetworkValues_XML( f )
 	file:close()
 end
 
-function NeuralNet.learn(filename,iterations)
+function NeuralNet.learn(filename,iterations,log)
 	local file = io.open(NeuralNet.LEARN_LOG,"a")
 	file:write('<?xml version="1.0" encoding="UTF-8"?>\n')
 	file:write('<?xml-stylesheet type="text/xsl" href="training_style.xsl"?>')
@@ -320,6 +335,7 @@ function NeuralNet.learn(filename,iterations)
 	print("Running BP for "..iterations.." iterations")
 	for i = 1, iterations, 1 do 
 		print("Iteration: "..i)
+		totalError = 0
 		for line in io.lines(filename) do
 
 			local s1 = string.sub(line,1,string.find(line,";") -1)
@@ -343,9 +359,11 @@ function NeuralNet.learn(filename,iterations)
 			NeuralNet.forwardPropigate()
 
 			NeuralNet.backPropigate()
-
-			NeuralNet.logNet_XML(NeuralNet.LEARN_LOG,"learn")
+			if log == true then
+				NeuralNet.logNet_XML(NeuralNet.LEARN_LOG,"learn")
+			end
 		end
+		logError("../Analysis/trainingError.csv",totalError,i)
 	end
 	print("Finished Trainning\n Values Strored in:"..NeuralNet.NET_VAL_XML)
 	local file = io.open(NeuralNet.LEARN_LOG,"a")
@@ -491,6 +509,12 @@ if io.read() == "Y" then
 	NeuralNet.parseXMLNetvalues(NeuralNet.NET_VALUES_FILE)
 end
 
-NeuralNet.learn(NeuralNet.TRAINING_FILE,NeuralNet.TRAIN_ITERATIONS)
+local log = false
+io.write("Do you wish to log training to file (Y/N) :")
+if io.read() == "Y" then
+	log = true
+end
+
+NeuralNet.learn(NeuralNet.TRAINING_FILE,NeuralNet.TRAIN_ITERATIONS,log)
 
 

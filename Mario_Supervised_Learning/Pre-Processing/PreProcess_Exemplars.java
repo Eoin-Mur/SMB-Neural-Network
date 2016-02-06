@@ -1,10 +1,11 @@
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Scanner;
 import java.io.File;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 
-class Examine_Exemplars
+class PreProcess_Exemplars
 {
 
 	public static void countDistinctExemplars(String file)
@@ -95,14 +96,78 @@ class Examine_Exemplars
 	}
 
 
+	public static void sameInputDiffOutput(String file)
+	{
+		LinkedHashMap<String,String> exemplars = new LinkedHashMap<String,String>();
+
+		Scanner sc = null;
+		try
+		{
+			sc = new Scanner(new File(file));
+		}
+		catch(Exception e)
+		{
+			System.out.println("File "+file+" not found!");
+		}
+
+		while(sc.hasNextLine())
+		{
+			String line = sc.nextLine();
+			String input = line.substring(0,line.indexOf(";"));
+			String output = line.substring(line.indexOf(";")+1, line.length());
+
+			if(exemplars.get(input) == null)
+			{
+				exemplars.put(input,output);
+			}
+			else
+			{
+				if(numOnOutputs(output) > numOnOutputs(exemplars.get(input)))
+					exemplars.put(input,output);
+			}
+		}
+
+		PrintWriter pw = null;
+		try
+		{
+			pw = new PrintWriter("blahblah.dat");
+		}
+		catch(Exception e)
+		{
+			System.out.println("Error creating file");
+		}
+
+		for(String key : exemplars.keySet())
+		{
+
+			pw.println(key+";"+exemplars.get(key));
+
+		}
+		pw.close();
+	}
+
+	public static int numOnOutputs(String output)
+	{
+		int count = 0;
+		for(String out : output.split("\\|"))
+		{
+			if(Integer.parseInt(out) == 1)
+				count++;
+		}
+		return count;
+	}
+
 	public static void main(String [] args)
 	{
-		String exemplarFile = "../Exemplar_Files/exemplars_Feb_04_14_30_49.dat";
+		String exemplarFile = "../Exemplar_Files/exemplars_no_dupes_best_exemplar_file.dat";
 
 		System.out.println("Examining: "+exemplarFile);
-		countDistinctExemplars(exemplarFile);
+		//countDistinctExemplars(exemplarFile);
 
-		removeDublicateExemplars(exemplarFile);
+		//removeDublicateExemplars(exemplarFile);
+
+		sameInputDiffOutput(exemplarFile);
+		
 	}
 
 }

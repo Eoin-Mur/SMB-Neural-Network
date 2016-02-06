@@ -1,8 +1,8 @@
 
 
-local STATE_FILE = "C:/Users/eoinm_000/Documents/GitHub/fourth-year-project/Mario_Supervised_Learning/Save_States/SMB_L1-1_laptop.State" --laptop
+--local STATE_FILE = "C:/Users/eoinm_000/Documents/GitHub/fourth-year-project/Mario_Supervised_Learning/Save_States/SMB_L1-1_laptop.State" --laptop
 
---local STATE_FILE = "C:/Users/Eoin/Documents/GitHub/fourth-year-project/Mario_Supervised_Learning/Save_States/SMB_L1-1.State" -- desktop
+local STATE_FILE = "C:/Users/Eoin/Documents/GitHub/fourth-year-project/Mario_Supervised_Learning/Save_States/SMB_L1-1.State" -- desktop
 local TOGGLE_UI = "ON" 
 local RECORD_EXEMPLARS = "OFF"
 local EXPLOIT_NET = "OFF"
@@ -17,8 +17,8 @@ local ELAPSED_F = 0
 local VIEW_RADIUS --add to config
 local PLAYER_X, PLAYER_Y
 local PREV_EXEMPLAR = "0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|1|1|1|1|1|1|1|1|0|1|1|1|1|1|1|1|1|0|0|0|0|0|0|0|0|0"
-local LEARN_LOG = "../Training_Logs/NETLearn_"..os.date("%b_%d_%H_%M_%S")..".xml"
-local RUN_LOG = "../Run_Logs/NETRun_"..os.date("%b_%d_%H_%M_%S")..".xml"
+local LEARN_LOG = "../Training_Logs/NETLearn_"..os.date("%b-%d-%H-%M-%S")..".xml"
+local RUN_LOG = "../Run_Logs/NETRun_"..os.date("%b-%d-%H-%M-%S")..".xml"
 --local NET_VAL = "../Network_Values/NETVal_"..os.date("%b_%d_%H_%M_%S")..".dat"
 --local NET_VAL_XML = "../Network_Values/NETVal_"..os.date("%b_%d_%H_%M_%S")..".xml"
 local NET_VALUES_FILE 
@@ -93,7 +93,7 @@ function readNumpad()
 	if inputs["NumberPad3"] == nil and NUM_PAD3 == true then
 		loadSaveState(STATE_FILE)
 		RECORD_EXEMPLARS = "ON"
-		EXEMPLAR_FILENAME = "../Exemplar_Files/exemplars_"..os.date("%b_%d_%H_%M_%S")..".dat"
+		EXEMPLAR_FILENAME = "../Exemplar_Files/exemplars_"..os.date("%b-%d-%H-%M-%S")..".dat"
 		NUM_PAD3 = false
 	end
 
@@ -490,9 +490,9 @@ end
 
 function sigmod(x,r)
 	if r ~= nil then
-		return round((1/(1+math.exp(-4.9*x))),r);
+		return round((1.0/(1+math.exp(-4.9*x))),r);
 	else
-		return 1/(1+math.exp(-4.9*x))
+		return 1.0/(1+math.exp(-4.9*x))
 	end
 end
 
