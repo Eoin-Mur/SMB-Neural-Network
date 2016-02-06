@@ -31,11 +31,6 @@ TRAIN_ITERATIONS 100
 # NET_VALUES_FILE ../Network_Values/NETVal_Feb_04_18_43_01.xml
 
 
-
-
-
-
-
 # NET_VALUES_FILE ../Network_Values/NETVal_Feb_06_12_43_23.xml
 
 NET_VALUES_FILE ../Network_Values/NETVal_100_Iterations_No_Dupes.xml
