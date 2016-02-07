@@ -874,6 +874,40 @@ function highlight(itemNum, currentSel)
 	end
 end
 
+--if marios x position hasnt moved for x amount of frames 
+--set the controllers values all to 0 and let the net reset.
+--for a set amount of reset frames
+local previousX = 0
+local previousY = 0
+local stuckFramesElapsed = 0
+function resetIfStuck(f,rF)
+	if PLAYER_X == previousX and PLAYER_Y == previousY then
+		stuckFramesElapsed = stuckFramesElapsed + 1
+	else
+		stuckFramesElapsed = 0
+		previousX = PLAYER_X
+		previousY = PLAYER_Y
+	end
+
+	if stuckFramesElapsed == f then
+		console.log("Stuck")
+		local outputs = {}
+		local x = 1
+		for k = LOW_K, HIGH_K, 1 do
+			local button = "P1 "..ButtonNames[x] 
+			outputs[button] = false
+			x = x + 1
+		end
+		local i = 1
+		while i ~= rF do
+			emu.frameadvance()
+			i = i + 1
+		end
+		joypad.set(outputs)
+		stuckFramesElapsed = 0
+	end
+end
+
 loadConfig("../config.txt")
 
 InitNetwork()
@@ -895,6 +929,7 @@ while true do
 	elseif EXPLOIT_NET == "ON" then
 		--check if the user hits 5 again to end the net execute.
 		
+		resetIfStuck(10,4)
 		joypad.set(exploit())
 		readNumpad()
 		if isPlayerDead() then

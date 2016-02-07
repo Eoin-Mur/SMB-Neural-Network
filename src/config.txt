@@ -6,13 +6,13 @@
 
 # TRAINING_FILE ../Exemplar_Files/exemplars_5_Feb-06-17-10-13.dat
 
-TRAINING_FILE ../Pre-Processing/exemplars-best-file_ND.dat
+TRAINING_FILE ../Pre-Processing/exemplars_2_Feb-06-18-06-40_ND.dat
 # number of frames the user can record exemplars for
-RECORD_F 1000
+RECORD_F 2500
 
 # Radius of the tiles around mario to be passed as inputs to the network max is 7
 # total number of inputs is (VIEW_RADIUS * 2 + 1) * (VIEW_RADIUS * 2 + 1)  
-VIEW_RADIUS 4
+VIEW_RADIUS 2
 
 # number of nureons in the hidden layer
 NUM_NUERONS 20
@@ -32,4 +32,4 @@ TRAIN_ITERATIONS 200
 
 # NET_VALUES_FILE ../Network_Values/NETVal_Feb_06_12_43_23.xml
 
-NET_VALUES_FILE ../Network_Values/NETVal_Feb-07-16-50-37.xml
+NET_VALUES_FILE ../Network_Values/NETVal_Feb-07-17-48-08.xml
