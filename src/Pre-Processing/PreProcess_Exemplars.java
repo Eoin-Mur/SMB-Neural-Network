@@ -8,14 +8,14 @@ import java.util.ArrayList;
 class PreProcess_Exemplars
 {
 
-	public static void countDistinctExemplars(String file)
+	public static String countDistinctExemplars(String file)
 	{
 		HashMap<String, Integer> count = new HashMap<String, Integer>();
 
 		Scanner sc = null;
 		try
 		{
-			sc = new Scanner(new File(file));
+			sc = new Scanner(new File("../Exemplar_Files/"+file+".dat"));
 		}
 		catch(Exception e)
 		{
@@ -41,11 +41,11 @@ class PreProcess_Exemplars
 		PrintWriter pw = null;
 		try
 		{
-			pw = new PrintWriter("exemplar-Count.dat");
+			pw = new PrintWriter(file+"-Count.dat");
 		}
 		catch(Exception e)
 		{
-			System.out.println("File "+file+" not found!");
+			System.out.println("Error creating file");
 		}
 
 		for(String key : count.keySet())
@@ -53,9 +53,11 @@ class PreProcess_Exemplars
 			pw.println(key+" | count: "+count.get(key));
 		}
 		pw.close();
+
+		return file+"-Count";
 	}
 
-	public static void removeDublicateExemplars(String file)
+	public static String removeDublicateExemplars(String file)
 	{
 
 		ArrayList<String> nonDupExemplars = new ArrayList<String>();
@@ -63,11 +65,11 @@ class PreProcess_Exemplars
 		Scanner sc = null;
 		try
 		{
-			sc = new Scanner(new File(file));
+			sc = new Scanner(new File("../Exemplar_Files/"+file+".dat"));
 		}
 		catch(Exception e)
 		{
-			System.out.println("Error creating file");
+			System.out.println("File "+file+" not found!");
 		}
 
 		while(sc.hasNextLine())
@@ -81,7 +83,7 @@ class PreProcess_Exemplars
 		PrintWriter pw = null;
 		try
 		{
-			pw = new PrintWriter("exemplars_no_dupes.dat");
+			pw = new PrintWriter(file+"_ND.dat");
 		}
 		catch(Exception e)
 		{
@@ -93,17 +95,19 @@ class PreProcess_Exemplars
 			pw.println(nonDupExemplars.get(i));
 		}
 		pw.close();
+
+		return file+"_ND";
 	}
 
 
-	public static void sameInputDiffOutput(String file)
+	public static String sameInputDiffOutput(String file)
 	{
 		LinkedHashMap<String,String> exemplars = new LinkedHashMap<String,String>();
 
 		Scanner sc = null;
 		try
 		{
-			sc = new Scanner(new File(file));
+			sc = new Scanner(new File(file+".dat"));
 		}
 		catch(Exception e)
 		{
@@ -130,7 +134,7 @@ class PreProcess_Exemplars
 		PrintWriter pw = null;
 		try
 		{
-			pw = new PrintWriter("blahblah.dat");
+			pw = new PrintWriter(file+"_HOOC.dat");
 		}
 		catch(Exception e)
 		{
@@ -144,6 +148,7 @@ class PreProcess_Exemplars
 
 		}
 		pw.close();
+		return file+"_HOOC";
 	}
 
 	public static int numOnOutputs(String output)
@@ -159,15 +164,25 @@ class PreProcess_Exemplars
 
 	public static void main(String [] args)
 	{
-		String exemplarFile = "../Exemplar_Files/exemplars_no_dupes_best_exemplar_file.dat";
 
-		System.out.println("Examining: "+exemplarFile);
-		//countDistinctExemplars(exemplarFile);
+		//String exemplarFile = "../Exemplar_Files/exemplars_no_dupes_best_exemplar_file.dat";
 
-		//removeDublicateExemplars(exemplarFile);
+		if(args.length != 1)
+		{
+			System.out.println("Usage: \n\tjava PreProcess_Exemplars 'exemplarFileName'");
+		}
+		else
+		{
+				System.out.println("Examining: "+args[0]);
+			//countDistinctExemplars(exemplarFile);
 
-		sameInputDiffOutput(exemplarFile);
-		
+			//removeDublicateExemplars(exemplarFile);
+
+			sameInputDiffOutput(removeDublicateExemplars(args[0]));
+
+			System.out.println("Done!");
+		}
+			
 	}
 
 }

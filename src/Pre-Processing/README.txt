@@ -9,6 +9,8 @@ Atributes:
 	each attribute is seperated by the '_' char.
 	#NOTE: These are not the set attributes and others can be added at any time
 
+	the number at the start is the view radius
+
 	List of attribute abrivations:
 	
 		ND		: no duplicates - the duplicate exemplars were removed from the file.

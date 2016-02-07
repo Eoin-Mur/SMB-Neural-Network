@@ -181,6 +181,7 @@ function NeuralNet.backPropigate()
 end
 
 function logError(filename,E,epoch)
+	
 	local file = io.open(filename,'a')
 	file:write(E..","..epoch.."\n")
 	file:close()
@@ -291,7 +292,7 @@ end
 function NeuralNet.StoreNetworkValues_XML( f )
 	local file = io.open(f,"w")
 	file:write('<?xml version="1.0" encoding="UTF-8"?>\n')
-	file:write('<Network>')
+	file:write('<'..NeuralNet.TRAINING_FILE:match("/(exemplars.+)%.dat")..'_'..NeuralNet.TRAIN_ITERATIONS..'>')
 	file:write('<IL_HL_Weights>\n')
 	for i = NeuralNet.LOW_I, NeuralNet.HIGH_I, 1 do
 		file:write('<i'..i..'>')
@@ -321,7 +322,7 @@ function NeuralNet.StoreNetworkValues_XML( f )
 	end
 	file:write('</jT>\n')
 	file:write('</HL_OL_Weights>\n')
-	file:write('</Network>')
+	file:write('</'..NeuralNet.TRAINING_FILE:match("/(exemplars.+)%.dat")..'_'..NeuralNet.TRAIN_ITERATIONS..'>')
 	file:close()
 end
 
@@ -329,6 +330,7 @@ function NeuralNet.learn(filename,iterations,log)
 	local file = io.open(NeuralNet.LEARN_LOG,"a")
 	file:write('<?xml version="1.0" encoding="UTF-8"?>\n')
 	file:write('<?xml-stylesheet type="text/xsl" href="training_style.xsl"?>')
+	file:write('<'..NeuralNet.TRAINING_FILE:match("/(exemplars.+)%.dat")..'>')
 	file:write('<Network_LOG>')
 	file:close()
 	print("\nStarting Trainning for exemplars in file:"..filename)
@@ -363,11 +365,12 @@ function NeuralNet.learn(filename,iterations,log)
 				NeuralNet.logNet_XML(NeuralNet.LEARN_LOG,"learn")
 			end
 		end
-		logError("../Analysis/trainingError.csv",totalError,i)
+		logError("../Analysis/"..NeuralNet.TRAINING_FILE:match("/(exemplars.+)%.dat").."_trainingError_"..NeuralNet.TRAIN_ITERATIONS..".csv",totalError,i)
 	end
 	print("Finished Trainning\n Values Strored in:"..NeuralNet.NET_VAL_XML)
 	local file = io.open(NeuralNet.LEARN_LOG,"a")
 	file:write('</Network_LOG>')
+	file:write('</'..NeuralNet.TRAINING_FILE:match("/(exemplars.+)%.dat")..'>')
 	file:close()
 	NeuralNet.StoreNetworkValues_XML( NeuralNet.NET_VAL_XML )
 

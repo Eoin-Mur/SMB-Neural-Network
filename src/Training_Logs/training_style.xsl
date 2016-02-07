@@ -4,13 +4,14 @@
 <xsl:template match="/">
   <html>
   <body>
+    <p><b><xsl:value-of select="name(/*)"/></b></p>
     <table border="1">
       <tr bgcolor="#0099ff">
         <th style="text-align:left">Input</th>
         <th style="text-align:left">Output</th>
         <th style="text-align:left">Expected Output</th>
       </tr>
-      <xsl:for-each select="Network_LOG/Pass">
+      <xsl:for-each select="//Network_LOG/Pass">
       <tr>
         <td><xsl:value-of select="Input"/></td>
         <td><xsl:value-of select="Net_Output"/></td>

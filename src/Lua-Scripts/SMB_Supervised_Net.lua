@@ -1,8 +1,8 @@
 
 
---local STATE_FILE = "C:/Users/eoinm_000/Documents/GitHub/fourth-year-project/Mario_Supervised_Learning/Save_States/SMB_L1-1_laptop.State" --laptop
+--local STATE_FILE = "C:/Users/eoinm_000/Documents/GitHub/fourth-year-project/src/Save_States/SMB_L1-1_laptop.State" --laptop
 
-local STATE_FILE = "C:/Users/Eoin/Documents/GitHub/fourth-year-project/Mario_Supervised_Learning/Save_States/SMB_L1-1.State" -- desktop
+local STATE_FILE = "C:/Users/Eoin/Documents/GitHub/fourth-year-project/src/Save_States/SMB_L1-1.State" -- desktop
 local TOGGLE_UI = "ON" 
 local RECORD_EXEMPLARS = "OFF"
 local EXPLOIT_NET = "OFF"
@@ -16,7 +16,7 @@ local RECORD_F --add to config
 local ELAPSED_F = 0
 local VIEW_RADIUS --add to config
 local PLAYER_X, PLAYER_Y
-local PREV_EXEMPLAR = "0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|1|1|1|1|1|1|1|1|0|1|1|1|1|1|1|1|1|0|0|0|0|0|0|0|0|0"
+local PREV_EXEMPLAR
 local LEARN_LOG = "../Training_Logs/NETLearn_"..os.date("%b-%d-%H-%M-%S")..".xml"
 local RUN_LOG = "../Run_Logs/NETRun_"..os.date("%b-%d-%H-%M-%S")..".xml"
 --local NET_VAL = "../Network_Values/NETVal_"..os.date("%b_%d_%H_%M_%S")..".dat"
@@ -93,7 +93,7 @@ function readNumpad()
 	if inputs["NumberPad3"] == nil and NUM_PAD3 == true then
 		loadSaveState(STATE_FILE)
 		RECORD_EXEMPLARS = "ON"
-		EXEMPLAR_FILENAME = "../Exemplar_Files/exemplars_"..os.date("%b-%d-%H-%M-%S")..".dat"
+		EXEMPLAR_FILENAME = "../Exemplar_Files/exemplars_"..VIEW_RADIUS.."_"..os.date("%b-%d-%H-%M-%S")..".dat"
 		NUM_PAD3 = false
 	end
 
@@ -118,13 +118,15 @@ function readNumpad()
 			file:write('<?xml-stylesheet type="text/xsl" href="run_style.xsl"?>\n')
 			file:write('<Network_LOG>')
 			file:close()
+			EXPLOIT_NET = "ON"
 		else
 			local file = io.open(RUN_LOG,"a")
 			file:write('</Network_LOG>')
 			file:close()
+			EXPLOIT_NET = "OFF"
 		end
 		
-		EXPLOIT_NET = toggleOption(EXPLOIT_NET)
+		--EXPLOIT_NET = toggleOption(EXPLOIT_NET)
 		NUM_PAD5 = false
 	end
 
@@ -345,6 +347,11 @@ function recordExemplars()
 			local exemplarIn = table.concat( getScreen(VIEW_RADIUS), "|")
 			local exemplarOut = getExemplarOutputString("|")
 			local file = io.open(EXEMPLAR_FILENAME,"a")
+
+			if PREV_EXEMPLAR == nil then
+				PREV_EXEMPLAR = exemplarIn 
+			end
+
 			file:write(PREV_EXEMPLAR..";"..exemplarOut.."\n")
 			file:close()
 			PREV_EXEMPLAR = exemplarIn
@@ -446,48 +453,6 @@ function forwardPropigate()
 	end
 end
 
-function backPropigate()
-	local dw
-
-	for k = LOW_K, HIGH_K, 1 do
-		dy[k] = y[k] - O[k];
-		dx[k] = ( dy[k] ) * y[k] * (1-y[k])
-	end
-
-	for j = LOW_J, HIGH_J, 1 do
-		local t = 0
-		for k = LOW_K, HIGH_K, 1 do
-			t = t + ( dx[k] * w[j][k] )
-		end
-		dy[j] = t
-		dx[j] = (dy[j] ) * y[j] * ( 1- y[j])
-	end
-	-----------------------------------------
-	for j = LOW_J, HIGH_J, 1 do
-		for k = LOW_K, HIGH_K, 1 do
-			dw = dx[k] * y[j]
-			w[j][k] = w[j][k] - (RATE * dw)
-		end
-	end
-
-	for i = LOW_I, HIGH_I, 1 do
-		for j = LOW_J, HIGH_J, 1 do
-			dw = dx[j] * I[i]
-			w[i][j] = w[i][j] - (RATE * dw)
-		end 
-	end
-
-	for k = LOW_K, HIGH_K, 1 do
-		dw = dx[k] * (-1)
-		wt[k] = wt[k] - ( RATE * dw )
-	end
-
-	for j = LOW_J, HIGH_J, 1 do
-		dw = dx[j] * (-1)
-		wt[j] = wt[j] - ( RATE * dw)
-	end
-end
-
 function sigmod(x,r)
 	if r ~= nil then
 		return round((1.0/(1+math.exp(-4.9*x))),r);
@@ -525,50 +490,6 @@ function split(str, pat)
    return t
 end
 
-function learn(filename,iterations)
-	local file = io.open(LEARN_LOG,"a")
-	file:write('<?xml version="1.0" encoding="UTF-8"?>\n')
-	file:write('<?xml-stylesheet type="text/xsl" href="training_style.xsl"?>')
-	file:write('<Network_LOG>')
-	file:close()
-	for i = 1, iterations, 1 do 
-		for line in io.lines(filename) do
-			gui.drawBox(10,10,120,30,0xFF000000,0xA0000000)
-			gui.drawText(10,12,"TRAINING NETWORK!"..i,0xFFFF0000,10,"Segoe UI")
-
-			local s1 = string.sub(line,1,string.find(line,";") -1)
-			local s2 = string.sub(line,string.find(line,";")+1,string.len(line))
-
-			eI = split(s1,"|")
-			eO = split(s2,"|")
-
-			local x = 1
-			for i = LOW_I, HIGH_I, 1 do
-				I[i] = eI[x]
-				x = x + 1
-			end
-
-			x = 1
-			for k = LOW_K, HIGH_K, 1 do
-				O[k] = eO[x]
-				x = x + 1
-			end 
-
-			forwardPropigate()
-
-			backPropigate()
-
-			logNet_XML(LEARN_LOG,"learn")
-
-			emu.frameadvance() --to stop bizhawk from crashing becasue of not loading a new frame for two long.
-		end
-	end
-	local file = io.open(LEARN_LOG,"a")
-	file:write('</Network_LOG>')
-	file:close()
-	--StoreNetworkValues( NET_VAL )
-	StoreNetworkValues_XML( NET_VAL_XML )
-end
 
 function logNet(f,t)
 	local file = io.open(f,"a")
@@ -611,71 +532,6 @@ function logNet_XML(f,t)
 		file:write("</Exp_Output>\n")
 	end
 	file:write("</Pass>\n")
-	file:close()
-end
-
-
-function StoreNetworkValues( f )
-	local file = io.open(f,"a")
-	file:write("##Inputs->Hidden weights\n")
-	for i = LOW_I, HIGH_I, 1 do
-		for j = LOW_J, HIGH_J , 1 do
-			file:write(w[i][j].."|")
-		end
-			file:write("\n")
-	end
-	file:write("##Tresholds\n")
-	for j = LOW_J, HIGH_J, 1 do
-		file:write(wt[j].."|")
-	end
-	file:write("\n##Hidden->Output weights\n")
-	for j = LOW_J, HIGH_J, 1 do
-		for k = LOW_K, HIGH_K, 1 do
-			file:write(w[j][k].."|")
-		end
-			file:write("\n")
-	end
-	file:write("##Tresholds\n")
-	for k = LOW_K, HIGH_K, 1 do
-		file:write(wt[k].."|")
-	end
-	file:close()
-end
-
-function StoreNetworkValues_XML( f )
-	local file = io.open(f,"w")
-	file:write('<?xml version="1.0" encoding="UTF-8"?>\n')
-	file:write('<Network>')
-	file:write('<IL_HL_Weights>\n')
-	for i = LOW_I, HIGH_I, 1 do
-		file:write('<i'..i..'>')
-		for j = LOW_J, HIGH_J , 1 do
-			file:write(w[i][j].."|")
-		end
-			file:write('</i'..i..'>\n')
-	end
-	file:write('<iT>')
-	for j = LOW_J, HIGH_J, 1 do
-		file:write(wt[j].."|")
-	end
-	file:write('</iT>\n')
-	file:write('</IL_HL_Weights>\n')
-
-	file:write('<HL_OL_Weights>\n')
-	for j = LOW_J, HIGH_J, 1 do
-		file:write('<j'..j..'>')
-		for k = LOW_K, HIGH_K, 1 do
-			file:write(w[j][k].."|")
-		end
-			file:write('</j'..j..'>\n')
-	end
-	file:write('<jT>')
-	for k = LOW_K, HIGH_K, 1 do
-		file:write(wt[k].."|")
-	end
-	file:write('</jT>\n')
-	file:write('</HL_OL_Weights>\n')
-	file:write('</Network>')
 	file:close()
 end
 
@@ -1038,8 +894,9 @@ while true do
 		recordExemplars()
 	elseif EXPLOIT_NET == "ON" then
 		--check if the user hits 5 again to end the net execute.
-		readNumpad()
+		
 		joypad.set(exploit())
+		readNumpad()
 		if isPlayerDead() then
 			loadSaveState(STATE_FILE)
 		end

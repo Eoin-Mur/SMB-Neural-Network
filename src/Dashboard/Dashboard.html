@@ -1,0 +1,125 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd"> 
+<html>
+	<head>
+
+	</head>
+	<body>
+
+		<form>
+			Xml File Name:<br>
+			&nbsp;&nbsp;<input type="text" id="xmlFile"></input>
+			<br>
+			Log Type:<br>
+			&nbsp;&nbsp;<input type="radio" name="type" value="Run" checked>Run Log
+			<input type="radio" name="type" value="Training">Training Log
+			<br>
+			<br>
+			<br>
+			&nbsp;&nbsp;<button type="button" onClick="loadXML()">Load File</button>
+		</form>
+
+		<table id="log"/>
+	</body>
+	<script>
+		function loadXML()
+		{
+
+			var xmlhttp = new XMLHttpRequest();
+			var type = document.getElementsByName("type");
+			var xmlFile = document.getElementById("xmlFile").value;
+			var typeSelected;
+			for(var i=0; i < type.length; i++)
+			{
+				if(type[i].checked)
+				{
+					typeSelected=type[i].value;
+					break;
+				}
+			}
+			xmlhttp.onreadystatechange = function() 
+			{
+		    if (xmlhttp.readyState == 4 && xmlhttp.status == 200) 
+		    {
+		      displayXML(xmlhttp,typeSelected);
+		    }
+		  };
+
+			if(typeSelected == "Run")
+			{
+				xmlhttp.open("GET","../Run_Logs/"+xmlFile+".xml",true);
+				xmlhttp.send();
+			}
+			else
+			{
+				xmlhttp.open("GET","../Training_Logs/"+xmlFile+".xml",true);
+				xmlhttp.send();
+			}
+		}
+
+		function displayXML(xml,type)
+		{
+			
+			var xmlDoc = xml.responseXML;
+			if(type == "Run")
+				var table = "<tr><th>Input</th><th>Output</th></tr>";
+			else
+				var table = "<tr><th>Input</th><th>Output</th><th>Expected Output</th></tr>";
+
+			var pass = xmlDoc.getElementsByTagName("Pass");
+
+			for(var i = 0; i < pass.length; i++)
+			{
+				table += "<tr id='row"+i+"''><td id='input"+i+"' onmouseover='displayInput("+i+",4)' onmouseout='hideDisplay("+i+")'>" +
+					pass[i].getElementsByTagName("Input")[0].childNodes[0].nodeValue +
+					"</td><td>" +
+					pass[i].getElementsByTagName("Net_Output")[0].childNodes[0].nodeValue;
+					"</td>";
+				if(type == "Training")
+					table +=  "<td>" + 
+						pass[i].getElementsByTagName("Exp_Output")[0].childNodes[0].nodeValue +
+						"</td>";
+				table += "</tr>" +
+					"<tr id='display"+i+"'' style='display : none'></tr>";
+			}
+
+			document.getElementById("log").innerHTML = table;
+		}
+
+
+		function displayInput(id,r)
+		{
+
+			var input = document.getElementById("input"+id).innerHTML;
+			
+			var display = document.getElementById("display"+id);
+			var x = "";
+
+			var wB = "<div style='width:10px;height:10px;border:1px solid #000;background-color:white;float:left'></div>"
+			var yB = "<div style='width:10px;height:10px;border:1px solid #000;background-color:yellow;float:left'></div>"
+			var rB = "<div style='width:10px;height:10px;border:1px solid #000;background-color:red;float:left'></div>"
+			for(var i = 1; i < input.length+1; i++)
+			{
+				if(input.substring(i-1,i) == '0')
+					x = x + wB;
+				else if(input.substring(i-1,i) == '1')
+					x = x + yB;
+				else
+					x = x +rB;
+
+				if(i % (r*2+1) == 0 && i != 1)
+					x = x + "<div style='clear:both'/>";
+			}
+
+			display.innerHTML = x;
+			display.style.display = "block";
+		}
+
+		function hideDisplay(id)
+		{
+			var display = document.getElementById("display"+id);
+			display.innerHTML = "";
+			display.style.display = "none";
+		}
+
+	</script>
+</html>

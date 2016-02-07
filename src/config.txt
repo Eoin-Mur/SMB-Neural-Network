@@ -1,14 +1,14 @@
 # My configuration file for the SMB_Supervised_Net lua script
 
 # Filename of the exemplar file used for training the network
-TRAINING_FILE ../Exemplar_Files/exemplars_no_dupes_best_exemplar_file.dat
+# TRAINING_FILE ../Exemplar_Files/exemplars_no_dupes_best_exemplar_file.dat
 
-# Best Exemplar file yet!
-# TRAINING_FILE ../Exemplar_Files/exemplars_Feb_04_19_02_43.dat
 
-TRAINING_FILE ../Java_Files/blahblah.dat
+# TRAINING_FILE ../Exemplar_Files/exemplars_5_Feb-06-17-10-13.dat
+
+TRAINING_FILE ../Pre-Processing/exemplars-best-file_ND.dat
 # number of frames the user can record exemplars for
-RECORD_F 2500
+RECORD_F 1000
 
 # Radius of the tiles around mario to be passed as inputs to the network max is 7
 # total number of inputs is (VIEW_RADIUS * 2 + 1) * (VIEW_RADIUS * 2 + 1)  
@@ -21,16 +21,15 @@ NUM_NUERONS 20
 C 0.1
 
 # Learning Rate 0 < C < 1
-RATE 0.8
+RATE 0.3
 
 # number of times the network trains from the exemplar file
-TRAIN_ITERATIONS 100
+TRAIN_ITERATIONS 200
 
 # xml file with the trained network values
 
 # NET_VALUES_FILE ../Network_Values/NETVal_Feb_04_18_43_01.xml
 
-
 # NET_VALUES_FILE ../Network_Values/NETVal_Feb_06_12_43_23.xml
 
-NET_VALUES_FILE ../Network_Values/NETVal_100_Iterations_No_Dupes.xml
+NET_VALUES_FILE ../Network_Values/NETVal_Feb-07-16-50-37.xml
