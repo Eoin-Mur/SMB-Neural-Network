@@ -11,7 +11,7 @@
         <th style="text-align:left">Output</th>
         <th style="text-align:left">Expected Output</th>
       </tr>
-      <xsl:for-each select="//Pass">
+      <xsl:for-each select="//Network_LOG/Pass">
       <tr>
         <td><xsl:value-of select="Input"/></td>
         <td><xsl:value-of select="Net_Output"/></td>

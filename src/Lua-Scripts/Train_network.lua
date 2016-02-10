@@ -336,11 +336,7 @@ function NeuralNet.learn(filename,iterations,log)
 	print("\nStarting Trainning for exemplars in file:"..filename)
 	print("Running BP for "..iterations.." iterations")
 	for i = 1, iterations, 1 do 
-		local file = io.open(NeuralNet.LEARN_LOG,"a")
-		file:write('<Iteration'..i..">")
-		file:close();
-		os.execute("cls")
-		print("Trainning for exemplars in file:"..filename.." \n Progress:"..((i/NeuralNet.TRAIN_ITERATIONS)*100).."%")
+		print("Iteration: "..i)
 		totalError = 0
 		for line in io.lines(filename) do
 
@@ -369,9 +365,6 @@ function NeuralNet.learn(filename,iterations,log)
 				NeuralNet.logNet_XML(NeuralNet.LEARN_LOG,"learn")
 			end
 		end
-		local file = io.open(NeuralNet.LEARN_LOG,"a")
-		file:write('</Iteration'..i..">")
-		file:close();
 		logError("../Analysis/"..NeuralNet.TRAINING_FILE:match("/(exemplars.+)%.dat").."_trainingError_"..NeuralNet.TRAIN_ITERATIONS..".csv",totalError,i)
 	end
 	print("Finished Trainning\n Values Strored in:"..NeuralNet.NET_VAL_XML)

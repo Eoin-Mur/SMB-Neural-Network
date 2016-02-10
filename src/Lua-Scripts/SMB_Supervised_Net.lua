@@ -1,8 +1,8 @@
 
 
-local STATE_FILE = "C:/Users/eoinm_000/Documents/GitHub/fourth-year-project/src/Save_States/SMB_L1-1_laptop.State" --laptop
+--local STATE_FILE = "C:/Users/eoinm_000/Documents/GitHub/fourth-year-project/src/Save_States/SMB_L1-1_laptop.State" --laptop
 
---local STATE_FILE = "C:/Users/Eoin/Documents/GitHub/fourth-year-project/src/Save_States/SMB_L1-1.State" -- desktop
+local STATE_FILE = "C:/Users/Eoin/Documents/GitHub/fourth-year-project/src/Save_States/SMB_L1-1.State" -- desktop
 local TOGGLE_UI = "ON" 
 local RECORD_EXEMPLARS = "OFF"
 local EXPLOIT_NET = "OFF"
@@ -23,7 +23,6 @@ local RUN_LOG = "../Run_Logs/NETRun_"..os.date("%b-%d-%H-%M-%S")..".xml"
 --local NET_VAL_XML = "../Network_Values/NETVal_"..os.date("%b_%d_%H_%M_%S")..".xml"
 local NET_VALUES_FILE 
 local TRAINING_FILE
-local MAX_RADIUS = 7
 
 --Network variables---
 
@@ -345,7 +344,7 @@ function recordExemplars()
 		gui.drawText(10,12,"RECORDING EXEMPLARS",0xFFFF0000,10,"Segoe UI")
 
 		if ELAPSED_F < RECORD_F and RECORD_EXEMPLARS == "ON" then
-			local exemplarIn = table.concat( getScreen(MAX_RADIUS), "|")
+			local exemplarIn = table.concat( getScreen(VIEW_RADIUS), "|")
 			local exemplarOut = getExemplarOutputString("|")
 			local file = io.open(EXEMPLAR_FILENAME,"a")
 
@@ -467,13 +466,10 @@ function bipolarSigmod(x)
 end
 
 
---removed +0.5 to just turnicate and not round
 function round(num, idp)
   local mult = 10^(idp or 0)
-  return math.floor(num * mult) / mult
+  return math.floor(num * mult + 0.5) / mult
 end
-
---console.log(round(0.061856471638378,1))
 
 function split(str, pat)
    local t = {}  
@@ -575,7 +571,6 @@ function exploit()
 	local x = 1
 	for k = LOW_K, HIGH_K, 1 do
 		local button = "P1 "..ButtonNames[x] 
-		--if round(y[k],1) >= 0.1 then
 		if y[k] > 0.5 then
 			outputs[button] = true
 		else
