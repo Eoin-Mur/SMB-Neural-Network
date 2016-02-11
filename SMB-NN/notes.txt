@@ -1,0 +1,19 @@
+
+
+training on 2 radius 200 iterations .3 rate 
+-reached the first pit. nearly jumped the output was 0.389.... close to the 0.5 trigger.
+
+
+----------------------------------------
+
+training on 2 radius 200 it .4 rate 
+-made it to the second pit failed to jump. Net output seriously low: 0.024 cant even chear and reduce the triger to set outputs on for ones greater then 0.1 :P
+-from training log it looks like this input is getting dominated by 0 outputs. cant be a pit causing this input to exist anywhere else.
+i think it is apearing from falling infront of pipes....
+from steping through the run frame by frame that input appears when mario is standing on a pipe and in the exemplars i never jump of the top of a pipe i just walk off.
+increasing the input radius to 3 might help? will try dont want to just change the exemplars to have it fit the net better would just completly defeat the purpose of this to just create a perfect exemplar file and train the net on that
+
+
+-----------------------------------------
+training on 3 radius 200 it .4 rate 
+-net didnt jump over first enemy output .359 going to try increse the rate, re-train and see if it has a possitive effect.

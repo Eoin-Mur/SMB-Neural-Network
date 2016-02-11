@@ -333,7 +333,7 @@ function learn(filename,iterations,log)
 		file:write('<Iteration'..i..">")
 		file:close();
 		os.execute("cls")
-		print("Trainning for exemplars in file:"..filename.." \n Progress:"..((i/TRAIN_ITERATIONS)*100).."%")
+		print("Trainning for exemplars in file:"..filename.." \n Progress: "..math.floor(((i/TRAIN_ITERATIONS)*100)).."%")
 		totalError = 0
 		for line in io.lines(filename) do
 
@@ -365,7 +365,7 @@ function learn(filename,iterations,log)
 		local file = io.open(LEARN_LOG,"a")
 		file:write('</Iteration'..i..">")
 		file:close();
-		logError("../Analysis/"..TRAINING_FILE:match("/(exemplars.+)%.dat").."_trainingError_"..TRAIN_ITERATIONS..".csv",totalError,i)
+		logError("../Analysis/"..TRAINING_FILE:match("/(exemplars.+)%.dat").."_"..TRAIN_ITERATIONS.."_trainingError.csv",totalError,i)
 	end
 	print("Finished Trainning\n Values Strored in:"..NET_VAL_XML)
 	local file = io.open(LEARN_LOG,"a")

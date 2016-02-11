@@ -19,10 +19,10 @@ NUM_NUERONS 20
 C 0.1
 
 # Learning Rate 0 < C < 1
-RATE 0.3
+RATE 0.8
 
 # number of times the network trains from the exemplar file
-TRAIN_ITERATIONS 200
+TRAIN_ITERATIONS 400
 
 # xml file with the trained network values
 NET_VALUES_FILE ../Network_Values/NET-Values.xml

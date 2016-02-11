@@ -573,7 +573,7 @@ function exploit()
 	for k = LOW_K, HIGH_K, 1 do
 		local button = "P1 "..ButtonNames[x] 
 		--if round(y[k],1) >= 0.1 then
-		if y[k] > 0.5 then
+		if y[k] > 0.1 then
 			outputs[button] = true
 		else
 			outputs[button] = false
@@ -892,7 +892,6 @@ function resetIfStuck(f,rF)
 	end
 
 	if stuckFramesElapsed == f then
-		console.log("Stuck")
 		local outputs = {}
 		local x = 1
 		for k = LOW_K, HIGH_K, 1 do

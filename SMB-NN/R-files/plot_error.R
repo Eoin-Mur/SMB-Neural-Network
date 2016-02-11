@@ -1,8 +1,8 @@
-exemplar <- "exemplars_2_Feb-08-11-48-36_ND_trainingError_200.csv"
+exemplar <- "exemplars_7_full-level_ND-Reduced-Inputs_2_300_trainingError.csv"
 
-x <- paste("C:/Users/eoinm_000/Documents/GitHub/fourth-year-project/src/Analysis/",exemplar,sep="")
+x <- paste("C:/Users/Eoin/Documents/GitHub/fourth-year-project/SMB-NN/Analysis/",exemplar,sep="")
 
-#x <- paste("C:/Users/Eoin/Documents/GitHub/fourth-year-project/src/Analysis/",exemplar,sep="")
+#x <- paste("C:/Users/Eoin/Documents/GitHub/fourth-year-project/SMB-NN/Analysis/",exemplar,sep="")
 
 data <- read.csv(
 	file=x,
