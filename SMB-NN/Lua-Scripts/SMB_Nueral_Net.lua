@@ -908,12 +908,6 @@ function resetIfStuck(f,rF)
 		stuckFramesElapsed = 0
 	end
 end
-
-loadConfig("../config.txt")
-
-InitNetwork()
-
-
 	--Test to verify parseing net values successfull.
 --[[
 StoreNetworkValues_XML( "../Network_Values/parseTestPrev2.xml" )
@@ -921,6 +915,66 @@ parseXMLNetvalues("../Network_Values/NETVal_Jan_25_18_35_15.xml")
 StoreNetworkValues_XML( "../Network_Values/parseTestAfter2.xml" )
 --]]
 
+function Q_Learn()
+	local inputs = getScreen(VIEW_RADIUS)
+
+	local x = 1 
+	for i = LOW_I, HIGH_I - NUM_ACTIONS, 1 do
+		I[i] = inputs[x]
+		x = x + 1
+	end
+
+	local Qxa = {}
+	local curAct = 1
+	while curAct <= NUM_ACTIONS do 
+		for i = 1, NUM_ACTIONS, 1 do
+			if i == curAct then
+				I[i] = 1
+			else
+				I[i] = 0
+			end
+		end
+		forwardPropigate()
+		Qxa[curAct] = y[HIGH_K]
+	end
+
+	for i = 1, NUM_ACTIONS, 1 do
+		local highestAction
+		local highestValue
+		if i = 1 the
+			highestAction = i
+			highestValue = Qxa[i]
+		else
+			if Qxa[i] > highestValue then
+				highestAction = i
+				highestValue = Qxa[i]
+			end
+		end
+	end
+	setAction(highestAction)
+
+	
+
+end
+
+function setAction(a)
+	local buttons = {}
+	for k = 1, NUM_ACTIONS, 1 do
+		local button = "P1 "..ButtonNames[k] 
+		--if round(y[k],1) >= 0.1 then
+		if k = a then
+			buttons[button] = true
+		else
+			buttons[button] = false
+		end
+	end
+	joypad.set(buttons)	
+end
+
+
+
+loadConfig("../config.txt")
+InitNetwork()
 while true do
 	if SHOW_DATA == "ON" then
 		drawData(false)
