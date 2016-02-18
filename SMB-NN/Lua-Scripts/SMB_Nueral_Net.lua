@@ -915,6 +915,7 @@ parseXMLNetvalues("../Network_Values/NETVal_Jan_25_18_35_15.xml")
 StoreNetworkValues_XML( "../Network_Values/parseTestAfter2.xml" )
 --]]
 
+--[[
 function Q_Learn()
 	local inputs = getScreen(VIEW_RADIUS)
 
@@ -953,9 +954,9 @@ function Q_Learn()
 	end
 	setAction(highestAction)
 
-	
-
 end
+
+--]]
 
 function setAction(a)
 	local buttons = {}

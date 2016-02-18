@@ -319,61 +319,149 @@ function StoreNetworkValues_XML( f )
 	file:close()
 end
 
-function learn(filename,iterations,log)
+
+--TODO: dont write anything to the train log if log is false... headers etc..
+function learn(filename,iterations,log, selectTrain)
+	--write our training log header
 	local file = io.open(LEARN_LOG,"a")
 	file:write('<?xml version="1.0" encoding="UTF-8"?>\n')
 	file:write('<?xml-stylesheet type="text/xsl" href="training_style.xsl"?>')
 	file:write('<'..TRAINING_FILE:match("/(exemplars.+)%.dat")..'>')
 	file:write('<Network_LOG>')
 	file:close()
+	--output to the user the file training from and the number of iterations
 	print("\nStarting Trainning for exemplars in file:"..filename)
 	print("Running BP for "..iterations.." iterations")
+	--for each iteration of the exemplars specificed... The number of epochs
 	for i = 1, iterations, 1 do 
+		--open out file and write the start of the xml no for this iteration/epoch
 		local file = io.open(LEARN_LOG,"a")
 		file:write('<Iteration'..i..">")
 		file:close();
+		--so to not just keep printing (numberExemplars * Iterations) number of lines saying the
+		--algorithms progress call a cls to clear the console then write.
 		os.execute("cls")
 		print("Trainning for exemplars in file:"..filename.." \n Progress: "..math.floor(((i/TRAIN_ITERATIONS)*100)).."%")
-		totalError = 0
+		totalError = 0 --set our total error for the epoch to zero
+		-- for every exemplar in the training file.
 		for line in io.lines(filename) do
 
-			local s1 = string.sub(line,1,string.find(line,";") -1)
-			local s2 = string.sub(line,string.find(line,";")+1,string.len(line))
+			--load the read in exemplar to the network
+			loadExemplarToNet(line)
 
-			eI = split(s1,"|")
-			eO = split(s2,"|")
-
-			local x = 1
-			for i = LOW_I, HIGH_I, 1 do
-				I[i] = eI[x]
-				x = x + 1
-			end
-
-			x = 1
-			for k = LOW_K, HIGH_K, 1 do
-				O[k] = eO[x]
-				x = x + 1
-			end 
-
+			--now pass the inputs through the network
 			forwardPropigate()
 
+			--if the flag to use our selective training procedure in the call to train
+			if selectTrain == true then
+				local selectedExemplars = {}
+				--if the the current exemplar has a rarly occuring/important output
+				--(in this simple procedure rare/important outputs are jumps!) 
+				if O[1] == 1 then
+					--if the networks ouput for this exemplar was not acceptable add the exemplar to our list
+					if y[1] < 0.5 then
+						selectedExemplars[#selectedExemplars + 1] = line
+						print("adding exemplar!")
+						print(#selectedExemplars)
+					end
+				end
+			end	
+
+			--now backpropigate the error through the net and adjust our weights
 			backPropigate()
+			--log the training if we want too
 			if log == true then
 				logNet_XML(LEARN_LOG,"learn")
 			end
-		end
+
+		end--end epoch
+		--close the xml node
 		local file = io.open(LEARN_LOG,"a")
 		file:write('</Iteration'..i..">")
 		file:close();
+		--log our error data for this epoch
 		logError("../Analysis/"..TRAINING_FILE:match("/(exemplars.+)%.dat").."_"..TRAIN_ITERATIONS.."_trainingError.csv",totalError,i)
-	end
+
+		replaySelectedExemplars(selectedExemplars)
+	end --end training
+
+	--notify the user we are done training
+	--close our training xml file
+	--and write store the trained nework values.
 	print("Finished Trainning\n Values Strored in:"..NET_VAL_XML)
 	local file = io.open(LEARN_LOG,"a")
 	file:write('</Network_LOG>')
 	file:write('</'..TRAINING_FILE:match("/(exemplars.+)%.dat")..'>')
 	file:close()
 	StoreNetworkValues_XML( NET_VAL_XML )
+end --end function
 
+function loadExemplarToNet(exemplar)
+	local s1 = string.sub(exemplar,1,string.find(exemplar,";") -1) --get the input
+	local s2 = string.sub(exemplar,string.find(exemplar,";")+1,string.len(exemplar)) --get the expected output
+
+	--split the inputs and the outputs into a table on the seperator |
+	eI = split(s1,"|")
+	eO = split(s2,"|")
+
+	--set our net inputs to the exemplar input
+	local x = 1
+	for i = LOW_I, HIGH_I, 1 do
+		I[i] = eI[x]
+		x = x + 1
+	end
+
+	--set our expected outputs to the exemplar output
+	x = 1
+	for k = LOW_K, HIGH_K, 1 do
+		O[k] = eO[x]
+		x = x + 1
+	end 
+end
+
+function replaySelectedExemplars(list)
+	print("Replaying selected exempalrs!\nTotal selected Exemplars "..#list)
+	--while all the selected exemplars are not classfied correctly
+	while checkAllClassified(list) ~= true do
+		for exemplar in list do
+			loadExemplarToNet(exemplar)
+
+			forwardPropigate()
+
+			backpropigate()
+		end
+	end
+end
+
+function checkAllClassified( list )
+	--for the the selected exemplars
+	for exemplar in list do 
+
+		loadExemplarToNet(exemplar)
+
+		--pass each exmplar though the net
+		forwardPropigate()
+
+		--check if the net classified the outputs correctly
+		for k = LOW_K, HIGH_K, 1 do
+			--if the correct output was 1
+			if O[k] == 1 then
+				--then if the actual output was less then 0.5 it was cassified wrong so return false
+				if y[K] < 0.5 then
+					return false
+				end
+				--else if the correct was a 0
+			else 
+				--if the actual outputs was greater then 0.5 it was incorrectly classified so return false
+				if y[k] > 0.5 then
+					return false
+				end --end if
+			end -- and if
+		end --end for
+	end --end for 
+	--if we have gone though all exemplars in our list that implies all were classifed correctly
+	--fucntion never returned early with a false value
+	return true
 end
 
 function readVarsFromUsr()
@@ -506,6 +594,10 @@ end
 loadConfig("../config.txt")
 
 InitNetwork()
+
+function trainSeleted()
+
+end
 
 io.write("Do you wish to load prev network values (Y/N) :")
 if io.read() == "Y" then
