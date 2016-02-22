@@ -110,7 +110,7 @@ function readNumpad()
 
 	if inputs["NumberPad5"] == nil and NUM_PAD5 == true then
 		if EXPLOIT_NET == "OFF" then
-			loadSaveState(STATE_FILE)
+			--loadSaveState(STATE_FILE)
 			local file = io.open(RUN_LOG,"a")
 			file:write('<?xml version="1.0" encoding="UTF-8"?>\n')
 			file:write('<?xml-stylesheet type="text/xsl" href="run_style.xsl"?>\n')
@@ -573,7 +573,7 @@ function exploit()
 	for k = LOW_K, HIGH_K, 1 do
 		local button = "P1 "..ButtonNames[x] 
 		--if round(y[k],1) >= 0.1 then
-		if y[k] > 0.1 then
+		if y[k] > 0.9 then
 			outputs[button] = true
 		else
 			outputs[button] = false
@@ -956,7 +956,6 @@ function Q_Learn()
 
 end
 
---]]
 
 function setAction(a)
 	local buttons = {}
@@ -972,6 +971,7 @@ function setAction(a)
 	joypad.set(buttons)	
 end
 
+--]]
 
 
 loadConfig("../config.txt")

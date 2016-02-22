@@ -3,7 +3,7 @@
 # Filename of the exemplar file used for training the network
 # ../Exemplar_Files/ 
 # ../Pre-Processed_Exemplars/
-TRAINING_FILE ../Pre-Processed_Exemplars/exemplars_7_full-level_ND-Reduced-Inputs_2.dat
+TRAINING_FILE ../Pre-Processed_Exemplars/exemplars_7_full-level-Reduced-Inputs_2.dat
 
 # number of frames the user can record exemplars for
 RECORD_F 2500

@@ -1,4 +1,4 @@
-exemplar <- "exemplars_7_full-level_ND-Reduced-Inputs_2_300_trainingError.csv"
+exemplar <- "exemplars_7_full-level-Reduced-Inputs_2_10_trainingError.csv"
 
 x <- paste("C:/Users/Eoin/Documents/GitHub/fourth-year-project/SMB-NN/Analysis/",exemplar,sep="")
 

@@ -133,7 +133,7 @@ function backPropigate()
 
 	for k = LOW_K, HIGH_K, 1 do
 		dy[k] = y[k] - O[k]
-		totalError = totalError + (0.5 * ( dy[k] ^2)) 
+		totalError = totalError +  math.pow(dy[k],2) 
 		dx[k] = ( dy[k] ) * y[k] * (1-y[k])
 	end
 
@@ -322,6 +322,8 @@ end
 
 --TODO: dont write anything to the train log if log is false... headers etc..
 function learn(filename,iterations,log, selectTrain)
+	local selectedExemplars = {}
+
 	--write our training log header
 	local file = io.open(LEARN_LOG,"a")
 	file:write('<?xml version="1.0" encoding="UTF-8"?>\n')
@@ -329,10 +331,12 @@ function learn(filename,iterations,log, selectTrain)
 	file:write('<'..TRAINING_FILE:match("/(exemplars.+)%.dat")..'>')
 	file:write('<Network_LOG>')
 	file:close()
+
 	--output to the user the file training from and the number of iterations
 	print("\nStarting Trainning for exemplars in file:"..filename)
 	print("Running BP for "..iterations.." iterations")
 	--for each iteration of the exemplars specificed... The number of epochs
+	os.execute("cls")
 	for i = 1, iterations, 1 do 
 		--open out file and write the start of the xml no for this iteration/epoch
 		local file = io.open(LEARN_LOG,"a")
@@ -340,7 +344,7 @@ function learn(filename,iterations,log, selectTrain)
 		file:close();
 		--so to not just keep printing (numberExemplars * Iterations) number of lines saying the
 		--algorithms progress call a cls to clear the console then write.
-		os.execute("cls")
+		
 		print("Trainning for exemplars in file:"..filename.." \n Progress: "..math.floor(((i/TRAIN_ITERATIONS)*100)).."%")
 		totalError = 0 --set our total error for the epoch to zero
 		-- for every exemplar in the training file.
@@ -354,20 +358,18 @@ function learn(filename,iterations,log, selectTrain)
 
 			--if the flag to use our selective training procedure in the call to train
 			if selectTrain == true then
-				local selectedExemplars = {}
 				--if the the current exemplar has a rarly occuring/important output
 				--(in this simple procedure rare/important outputs are jumps!) 
-				if O[1] == 1 then
+				--first out put represnents a jump is LOW_K
+				if O[LOW_K] == 1 then
 					--if the networks ouput for this exemplar was not acceptable add the exemplar to our list
-					if y[1] < 0.5 then
+					if y[LOW_K] < 0.5 then
 						selectedExemplars[#selectedExemplars + 1] = line
-						print("adding exemplar!")
-						print(#selectedExemplars)
 					end
 				end
 			end	
 
-			--now backpropigate the error through the net and adjust our weights
+			--now backPropigate the error through the net and adjust our weights
 			backPropigate()
 			--log the training if we want too
 			if log == true then
@@ -380,9 +382,14 @@ function learn(filename,iterations,log, selectTrain)
 		file:write('</Iteration'..i..">")
 		file:close();
 		--log our error data for this epoch
-		logError("../Analysis/"..TRAINING_FILE:match("/(exemplars.+)%.dat").."_"..TRAIN_ITERATIONS.."_trainingError.csv",totalError,i)
+		logError("../Analysis/"..TRAINING_FILE:match("/(exemplars.+)%.dat").."_"..TRAIN_ITERATIONS.."_trainingError.csv",((1/2)*totalError),i)
 
-		replaySelectedExemplars(selectedExemplars)
+		os.execute("cls")
+		if selectTrain == true and selectedExemplars ~= nil then
+			replaySelectedExemplars(selectedExemplars)
+		end
+		--reset the selected exemplars list
+		selectedExemplars = {}
 	end --end training
 
 	--notify the user we are done training
@@ -407,37 +414,37 @@ function loadExemplarToNet(exemplar)
 	--set our net inputs to the exemplar input
 	local x = 1
 	for i = LOW_I, HIGH_I, 1 do
-		I[i] = eI[x]
+		I[i] = tonumber(eI[x])
 		x = x + 1
 	end
 
 	--set our expected outputs to the exemplar output
 	x = 1
 	for k = LOW_K, HIGH_K, 1 do
-		O[k] = eO[x]
+		O[k] = tonumber(eO[x])
 		x = x + 1
 	end 
 end
 
 function replaySelectedExemplars(list)
-	print("Replaying selected exempalrs!\nTotal selected Exemplars "..#list)
+	print("Replaying selected exempalrs, Total selected Exemplars "..#list.."\n")
 	--while all the selected exemplars are not classfied correctly
 	while checkAllClassified(list) ~= true do
-		for exemplar in list do
-			loadExemplarToNet(exemplar)
+		for i = 1, #list, 1 do
+			loadExemplarToNet(list[i])
 
 			forwardPropigate()
 
-			backpropigate()
+			backPropigate()
 		end
 	end
 end
 
 function checkAllClassified( list )
 	--for the the selected exemplars
-	for exemplar in list do 
+	for i = 1, #list, 1 do
 
-		loadExemplarToNet(exemplar)
+		loadExemplarToNet(list[i])
 
 		--pass each exmplar though the net
 		forwardPropigate()
@@ -447,7 +454,7 @@ function checkAllClassified( list )
 			--if the correct output was 1
 			if O[k] == 1 then
 				--then if the actual output was less then 0.5 it was cassified wrong so return false
-				if y[K] < 0.5 then
+				if y[k] < 0.5 then
 					return false
 				end
 				--else if the correct was a 0
@@ -599,17 +606,23 @@ function trainSeleted()
 
 end
 
-io.write("Do you wish to load prev network values (Y/N) :")
-if io.read() == "Y" then
+io.write("Do you wish to load prev network values (yes/no) : ")
+if io.read() == "yes" then
 	parseXMLNetvalues(NET_VALUES_FILE)
 end
 
 local log = false
-io.write("Do you wish to log training to file (Y/N) :")
-if io.read() == "Y" then
+io.write("Do you wish to log training to file (yes/no) : ")
+if io.read() == "yes" then
 	log = true
 end
 
-learn(TRAINING_FILE,TRAIN_ITERATIONS,log)
+local selective = false
+io.write("Do you wish to use the selective procedure (yes/no) : ")
+if io.read() == "yes" then
+	selective = true
+end
+
+learn(TRAINING_FILE,TRAIN_ITERATIONS,log,selective)
 
 

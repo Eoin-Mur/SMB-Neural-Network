@@ -19,7 +19,14 @@ class PreProcess_Exemplars
 		}
 		catch(Exception e)
 		{
-			System.out.println("File "+file+" not found!");
+			try
+			{
+				sc = new Scanner(new File("../Pre-Processed_Exemplars/"+file+".dat"));
+			}
+			catch(Exception ex)
+			{
+				System.out.println("File "+file+" not found!");
+			}
 		}
 
 		while(sc.hasNextLine())
@@ -69,7 +76,14 @@ class PreProcess_Exemplars
 		}
 		catch(Exception e)
 		{
-			System.out.println("File "+file+" not found!");
+			try
+			{
+				sc = new Scanner(new File("../Pre-Processed_Exemplars/"+file+".dat"));
+			}
+			catch(Exception ex)
+			{
+				System.out.println("File "+file+" not found!");
+			}
 		}
 
 		while(sc.hasNextLine())
@@ -107,11 +121,18 @@ class PreProcess_Exemplars
 		Scanner sc = null;
 		try
 		{
-			sc = new Scanner(new File(file+".dat"));
+			sc = new Scanner(new File("../Exemplar_Files/"+file+".dat"));
 		}
 		catch(Exception e)
 		{
-			System.out.println("File "+file+" not found!");
+			try
+			{
+				sc = new Scanner(new File("../Pre-Processed_Exemplars/"+file+".dat"));
+			}
+			catch(Exception ex)
+			{
+				System.out.println("File "+file+" not found!");
+			}
 		}
 
 		while(sc.hasNextLine())
