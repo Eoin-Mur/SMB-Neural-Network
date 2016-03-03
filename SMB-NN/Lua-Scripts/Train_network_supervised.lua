@@ -383,7 +383,7 @@ function learn(filename,iterations,log, selectTrain, crossVal)
 				--first out put represnents a jump is LOW_K
 				if O[LOW_K] == 1 then
 					--if the networks ouput for this exemplar was not acceptable add the exemplar to our list
-					if y[LOW_K] < 0.5 then
+					if y[LOW_K] < 0.1 then
 						selectedExemplars[#selectedExemplars + 1] = line
 					end
 				end
@@ -474,13 +474,13 @@ function checkAllClassified( list )
 			--if the correct output was 1
 			if O[k] == 1 then
 				--then if the actual output was less then 0.5 it was cassified wrong so return false
-				if y[k] < 0.5 then
+				if y[k] < 0.1 then
 					return false
 				end
 				--else if the correct was a 0
 			else 
 				--if the actual outputs was greater then 0.5 it was incorrectly classified so return false
-				if y[k] > 0.5 then
+				if y[k] > 0.1 then
 					return false
 				end --end if
 			end -- and if

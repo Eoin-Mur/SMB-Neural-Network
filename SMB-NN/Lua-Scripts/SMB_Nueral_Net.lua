@@ -573,7 +573,11 @@ function exploit()
 	for k = LOW_K, HIGH_K, 1 do
 		local button = "P1 "..ButtonNames[x] 
 		--if round(y[k],1) >= 0.1 then
-		if y[k] > 0.5 then  
+<<<<<<< HEAD
+		if y[k] > 0.9 then  
+=======
+		if y[k] > 0.5 then
+>>>>>>> origin/master
 			outputs[button] = true
 		else
 			outputs[button] = false
@@ -988,9 +992,9 @@ while true do
 		resetIfStuck(10,4)
 		joypad.set(exploit())
 		readNumpad()
-		if isPlayerDead() then
-			loadSaveState(STATE_FILE)
-		end
+		--if isPlayerDead() then
+		--	loadSaveState(STATE_FILE)
+		--end
 	else
 		drawUI()
 	end
