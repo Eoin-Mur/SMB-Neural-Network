@@ -1,6 +1,6 @@
---local STATE_FILE = "C:/Users/eoinm_000/Documents/GitHub/fourth-year-project/SMB-NN/Save_States/SMB_L1-1_laptop.State" --laptop
+local STATE_FILE = "C:/Users/eoinm_000/Documents/GitHub/fourth-year-project/SMB-NN/Save_States/SMB_L1-1_laptop.State" --laptop
 
-local STATE_FILE = "C:/Users/Eoin/Documents/GitHub/fourth-year-project/SMB-NN/Save_States/SMB_L1-1.State" -- desktop
+--local STATE_FILE = "C:/Users/Eoin/Documents/GitHub/fourth-year-project/SMB-NN/Save_States/SMB_L1-1.State" -- desktop
 local TOGGLE_UI = "ON" 
 local RECORD_EXEMPLARS = "OFF"
 local EXPLOIT_NET = "OFF"
@@ -573,7 +573,7 @@ function exploit()
 	for k = LOW_K, HIGH_K, 1 do
 		local button = "P1 "..ButtonNames[x] 
 		--if round(y[k],1) >= 0.1 then
-		if y[k] > 0.9 then
+		if y[k] > 0.5 then  
 			outputs[button] = true
 		else
 			outputs[button] = false

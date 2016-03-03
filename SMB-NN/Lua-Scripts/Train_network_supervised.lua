@@ -319,9 +319,29 @@ function StoreNetworkValues_XML( f )
 	file:close()
 end
 
+local TOTAL_EXEMPLAR_LINES = 762
 
 --TODO: dont write anything to the train log if log is false... headers etc..
-function learn(filename,iterations,log, selectTrain)
+function splitExemplars(filename,split)
+	local split = {}
+	--create our table struct
+	for i = 1, split, 1 do
+		split["subset"..i] = {}
+		local j = 1
+		--wont work for subsets greater then 2 will write a more generic solouion just want to test proof of concept
+		for line in io.open(filename) do
+			if ( j < math.floor(TOTAL_EXEMPLAR_LINES / split) ) and ( i % split ~= 0 ) then
+				split["subset"..i][#split["subset"..i]+1] = line
+			elseif ( j > math.floor(TOTAL_EXEMPLAR_LINES / split) ) and ( i % split == 0 ) then
+				split["subset"..i][#split["subset"..i]+1] = line
+			end
+			j = j + 1
+		end
+	end
+	return split
+end
+
+function learn(filename,iterations,log, selectTrain, crossVal)
 	local selectedExemplars = {}
 
 	--write our training log header
