@@ -18,13 +18,15 @@ local PREV_EXEMPLAR
 local RUN_LOG = "../Run_Logs/NET-Run_"..os.date("%b-%d-%H-%M-%S")..".xml"
 --local NET_VAL = "../Network_Values/NETVal_"..os.date("%b_%d_%H_%M_%S")..".dat"
 --local NET_VAL_XML = "../Network_Values/NETVal_"..os.date("%b_%d_%H_%M_%S")..".xml"
+local NET_TYPE
 local NET_VALUES_FILE 
 local TRAINING_FILE
 local MAX_RADIUS = 7
 
 --Network variables---
 
-local NUM_INPUTS  
+local NUM_INPUTS
+local NUM_ACTIONS = 6  
 local NUM_NUERONS --add to config
 local NUM_OUTPUTS = 6
 
@@ -211,6 +213,36 @@ function getEnemyScreenPositions()
 	end
 	return enemyPositons
 end
+
+function getHitBoxes()
+	local hitBoxes = {
+		mario = {},
+		enemy = {}
+	}
+
+	for i = 0x04AC, 0x04AF, 0x0001 do
+		hitBoxes.mario[#hitBoxes.mario+1] = memory.readbyte(i)
+	end
+
+	--0x000F-0x0013
+	local address = 0x04B0
+	local x = 1
+	for i = 0x000F, 0x0013, 0x0001 do
+		if memory.readbyte(i) == 1 then
+			hitBoxes.enemy[x] = 
+			{ 
+				["x1"] = memory.readbyte(address), 
+				["y1"] = memory.readbyte(address+0x0001) ,
+				["x2"] = memory.readbyte(address+0x0002), 
+				["y2"] = memory.readbyte(address+0x0003) 
+			}
+			x = x + 1
+		end
+		address = address + 0x0004
+	end
+	return hitBoxes
+end
+
 
 function norm(value,min,max)
 	return (value - min) / (max - min)
@@ -670,6 +702,8 @@ function drawData(drawPos)
 	getPlayerPosition()
 	getEnemyScreenPositions()
 
+	drawHitBoxes()
+
 	if drawPos == true then
 		gui.drawBox(150,10,255,140,0xFF000000,0xA0000000)
 		gui.drawText(152,12,"PlayerX   : "..PLAYER_X,0xFFFFFFFF,10,"Segoe UI")
@@ -698,21 +732,6 @@ function drawData(drawPos)
 	gui.drawEllipse(217,44,10,10,0xFF000000,highlightKey(outputs,2,0xFF000000)) --B
 	gui.drawEllipse(232,44,10,10,0xFF000000,highlightKey(outputs,1,0xFF000000)) --A
 
-
-	--gui.drawBox(150,10,210,80,0xFF000000,0xA0000000)
-	--gui.drawText(152,12,"A: "..outputs[1],0xFFFFFFFF,10,"Segoe UI")
-	--gui.drawText(152,22,"B: "..outputs[2],0xFFFFFFFF,10,"Segoe UI")
-	--gui.drawText(152,32,"Down: "..outputs[3],0xFFFFFFFF,10,"Segoe UI")
-	--gui.drawText(152,42,"Left: "..outputs[4],0xFFFFFFFF,10,"Segoe UI")
-	--gui.drawText(152,52,"Right: "..outputs[5],0xFFFFFFFF,10,"Segoe UI")
-	--gui.drawText(152,62,"Up: "..outputs[6],0xFFFFFFFF,10,"Segoe UI")
-
-	--gui.drawBox(190,10,255,150,0xFF000000,0xA0000000)
-	--gui.drawText(192,12,"1Loaded: "..enemysLoaded[1],0xFFFFFFFF,10,"Segoe UI")
-	--gui.drawText(192,22,"2Loaded: "..enemysLoaded[2],0xFFFFFFFF,10,"Segoe UI")
-	--gui.drawText(192,32,"3Loaded: "..enemysLoaded[3],0xFFFFFFFF,10,"Segoe UI")
-	--gui.drawText(192,42,"4Loaded: "..enemysLoaded[4],0xFFFFFFFF,10,"Segoe UI")
-	--gui.drawText(192,52,"5Loaded: "..enemysLoaded[5],0xFFFFFFFF,10,"Segoe UI")
 end	
 
 function highlightKey(outputs,key,defaultColour)
@@ -746,6 +765,7 @@ function loadConfig(filename)
 	C = config["C"]
 	RATE = config["RATE"]
 	TRAIN_ITERATIONS = config["TRAIN_ITERATIONS"]
+	NET_TYPE = config["NET_TYPE"];
 
 	loadNetConfig()
 
@@ -753,17 +773,30 @@ end
 
 function loadNetConfig()
 
-	NUM_INPUTS = (VIEW_RADIUS * 2 + 1) * (VIEW_RADIUS * 2 + 1)  
-
-	NET_TOTAL = NUM_INPUTS + NUM_NUERONS + NUM_OUTPUTS
+	if NET_TYPE == "Reinforcment" then
+		NUM_INPUTS = ( (VIEW_RADIUS * 2 + 1) * (VIEW_RADIUS * 2 + 1) ) + NUM_ACTIONS
+		NUM_OUTPUTS = 1
+		NET_TOTAL = NUM_INPUTS + NUM_NUERONS + NUM_OUTPUTS
  
-	LOW_I = 1
-	HIGH_I = NUM_INPUTS 
-	LOW_J = NUM_INPUTS + 1
-	HIGH_J = NUM_INPUTS + NUM_NUERONS
-	LOW_K = NUM_INPUTS + NUM_NUERONS + 1
-	HIGH_K = NUM_INPUTS + NUM_NUERONS + NUM_OUTPUTS
+		LOW_I = 1
+		HIGH_I = NUM_INPUTS 
+		LOW_J = NUM_INPUTS + 1
+		HIGH_J = NUM_INPUTS + NUM_NUERONS
+		LOW_K = NUM_INPUTS + NUM_NUERONS + 1
+		HIGH_K = NUM_INPUTS + NUM_NUERONS + NUM_OUTPUTS		
+	else 
 
+		NUM_INPUTS = (VIEW_RADIUS * 2 + 1) * (VIEW_RADIUS * 2 + 1)  
+
+		NET_TOTAL = NUM_INPUTS + NUM_NUERONS + NUM_OUTPUTS
+	 
+		LOW_I = 1
+		HIGH_I = NUM_INPUTS 
+		LOW_J = NUM_INPUTS + 1
+		HIGH_J = NUM_INPUTS + NUM_NUERONS
+		LOW_K = NUM_INPUTS + NUM_NUERONS + 1
+		HIGH_K = NUM_INPUTS + NUM_NUERONS + NUM_OUTPUTS
+	end
 end
 
 function printVariables()
@@ -785,7 +818,8 @@ function settingsUI()
 
 	local inputs = input.get()
 	gui.drawBox(10,10,240, 240,0xFF000000,0xE1000000)
-	gui.drawText(12,20,"TRAINING_FILE: ",highlight(1,curSel),10,"Segoe UI")
+	--gui.drawText(12,20,"TRAINING_FILE: ",highlight(1,curSel),10,"Segoe UI")
+	gui.drawText(12,40,"NET_TYPE: ",highlight(1,curSel),10,"Segoe UI")
 	gui.drawText(12,60,"RECORD_F: ",highlight(2,curSel),10,"Segoe UI")
 	gui.drawText(12,80,"VIEW_RADIUS: ",highlight(3,curSel),10,"Segoe UI")
 	gui.drawText(12,100,"NUM_NUERONS: ",highlight(4,curSel),10,"Segoe UI")
@@ -794,7 +828,8 @@ function settingsUI()
 	gui.drawText(12,160,"TRAIN_ITERATIONS: ",highlight(7,curSel),10,"Segoe UI")
 	gui.drawText(12,180,"NET_VALUES_FILE:",highlight(8,curSel),10,"Segoe UI")
 
-	gui.drawText(24,40,TRAINING_FILE,0xFFFFFF00,10,"Segoe UI")
+	--gui.drawText(24,40,TRAINING_FILE,0xFFFFFF00,10,"Segoe UI")
+	gui.drawText(120,40,NET_TYPE,0xFFFFFF00,10,"Segoe UI")
 	gui.drawText(120,60,RECORD_F,0xFFFFFF00,10,"Segoe UI")
 	gui.drawText(120,80,VIEW_RADIUS,0xFFFFFF00,10,"Segoe UI")
 	gui.drawText(120,100,NUM_NUERONS,0xFFFFFF00,10,"Segoe UI")
@@ -915,64 +950,103 @@ parseXMLNetvalues("../Network_Values/NETVal_Jan_25_18_35_15.xml")
 StoreNetworkValues_XML( "../Network_Values/parseTestAfter2.xml" )
 --]]
 
---[[
+
+
 function Q_Learn()
-	local inputs = getScreen(VIEW_RADIUS)
+	for steps = 0, TRAIN_ITERATIONS, 1 do
 
-	local x = 1 
-	for i = LOW_I, HIGH_I - NUM_ACTIONS, 1 do
-		I[i] = inputs[x]
-		x = x + 1
-	end
+		local inputs = getScreen(VIEW_RADIUS)
 
-	local Qxa = {}
-	local curAct = 1
-	while curAct <= NUM_ACTIONS do 
-		for i = 1, NUM_ACTIONS, 1 do
-			if i == curAct then
-				I[i] = 1
+		--first we pass the state through the net for each possible action and get all the qvalues
+		local qValues = {}
+
+		--for each action
+		for a = 1, NUM_ACTIONS, 1 do
+
+			--load the the state inputs to pass through net
+			local x = 1 
+			for i = LOW_I, HIGH_I - NUM_ACTIONS, 1 do
+				I[i] = inputs[x]
+				x = x + 1
+			end
+
+			--load the action to take to the network
+			for ia = 1, NUM_ACTIONS, 1 do
+				if ia == a then 
+					i[HIGH_I+ia] = 1
+				else
+					i[HIGH_I+ia] = 0
+				end 
+			end
+
+			--pass the inputs,action through the net
+			forwardPropigate()
+
+			--add the outputed qvalues to out list of qvalues
+			qValues[#qa + 1] = y[HIGH_K]
+
+		end
+
+		--will be using the bay's therom method to select between exporation vs explotation when choseing the action
+		--but for the mean time we will use the highest(explotation)
+		local qxa = highestQ(qxa)
+
+		--now set the controler for each according to the action taken
+		local buttons = {}
+		for a = 1, #ButtonNames, 1 do
+			if a == qxa.action then
+				buttons["P1 "..ButtonNames[a]] = 1
 			else
-				I[i] = 0
+				buttons["P1 "..ButtonNames[a]] = 0
 			end
 		end
-		forwardPropigate()
-		Qxa[curAct] = y[HIGH_K]
-	end
+		joypad.set(buttons)
 
-	for i = 1, NUM_ACTIONS, 1 do
-		local highestAction
-		local highestValue
-		if i = 1 the
-			highestAction = i
-			highestValue = Qxa[i]
-		else
-			if Qxa[i] > highestValue then
-				highestAction = i
-				highestValue = Qxa[i]
+		--execute controler button press and move to next frame/state
+		emu.frameadvance()
+
+		--get our reincforment values for the new state.
+		--reward if mario progressed further into the level(PLAYER_X increases) NOTE:may need to alter this
+		--punish if mario dies
+			-- *gets hit by a enemy (getHitboxes() function if marios hit box falls inside a enemys hit box) NOTE: will need to alter this
+				--in case it doest reflect in training that previsous states lead to death ie. mario jumped to late and as such the state in which mario actually hit the enemy may hae a different action 
+				-- then the state that initaly caused it...... i need to write up all this more detail outside of comments..
+				--TODO:write up report on potental/identifyed problems/resolutions
+			-- *falls into a pit (where PLAYER_Y position falls below 16 pixels, this is ass each tile is a 16x16 sprite so the top of the floor should be on the 16 pixel level )
+		getReinformentValues()
+
+		--calcualte qTarget and backprop error(prevQ - qTarget)
+
+
+	end
+end
+
+function highestQ(qValues)
+	local q = {
+		value,
+		action
+	}
+
+	for i = 1, #qValues, q do
+		if i == 1 then
+			q.value = qValues[i]
+			q.action = i
+		elseif qValues[i] >q.value then
+				q.value = qValues[i]
+				q.action = i
 			end
-		end
+		end	
+		return a
 	end
-	setAction(highestAction)
-
-end
 
 
-function setAction(a)
-	local buttons = {}
-	for k = 1, NUM_ACTIONS, 1 do
-		local button = "P1 "..ButtonNames[k] 
-		--if round(y[k],1) >= 0.1 then
-		if k = a then
-			buttons[button] = true
-		else
-			buttons[button] = false
-		end
+function drawHitBoxes()
+	local hitBoxes = getHitBoxes()
+	gui.drawBox(hitBoxes.mario[1],hitBoxes.mario[2], hitBoxes.mario[3], hitBoxes.mario[4],0xFF000000,0xE1000000)
+	for i = 1, #hitBoxes.enemy, 1 do
+		gui.drawBox(hitBoxes.enemy[i]["x1"],hitBoxes.enemy[i]["y1"], hitBoxes.enemy[i]["x2"], hitBoxes.enemy[i]["y2"],0xFF000000,0xE1000000)
 	end
-	joypad.set(buttons)	
 end
-
---]]
-
 
 loadConfig("../config.txt")
 InitNetwork()

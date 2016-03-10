@@ -26,3 +26,9 @@ TRAIN_ITERATIONS 100
 
 # xml file with the trained network values
 NET_VALUES_FILE ../Network_Values/NET-Values.xml
+
+# Network type
+# Supervised
+# Reinforcment uses a modified net where the actions are passed in as inputs and outputs the 1 value,
+# - the network is now used to represent the lookup table used in q-learning 
+NET_TYPE Reinforcment
