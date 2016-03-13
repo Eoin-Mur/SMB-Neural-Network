@@ -449,7 +449,7 @@ end
 function replaySelectedExemplars(list)
 	print("Replaying selected exempalrs, Total selected Exemplars "..#list.."\n")
 	--while all the selected exemplars are not classfied correctly
-	while checkAllClassified(list) ~= true do
+	--while checkAllClassified(list) ~= true do
 		for i = 1, #list, 1 do
 			loadExemplarToNet(list[i])
 
@@ -457,7 +457,7 @@ function replaySelectedExemplars(list)
 
 			backPropigate()
 		end
-	end
+	--end
 end
 
 function checkAllClassified( list )

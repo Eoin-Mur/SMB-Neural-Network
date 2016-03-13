@@ -1,6 +1,6 @@
-local STATE_FILE = "C:/Users/eoinm_000/Documents/GitHub/fourth-year-project/SMB-NN/Save_States/SMB_L1-1_laptop.State" --laptop
+--local STATE_FILE = "C:/Users/eoinm_000/Documents/GitHub/fourth-year-project/SMB-NN/Save_States/SMB_L1-1_laptop.State" --laptop
 
---local STATE_FILE = "C:/Users/Eoin/Documents/GitHub/fourth-year-project/SMB-NN/Save_States/SMB_L1-1.State" -- desktop
+local STATE_FILE = "C:/Users/Eoin/Documents/GitHub/fourth-year-project/SMB-NN/Save_States/SMB_L1-1.State" -- desktop
 local TOGGLE_UI = "ON" 
 local RECORD_EXEMPLARS = "OFF"
 local EXPLOIT_NET = "OFF"
@@ -8,7 +8,7 @@ local SHOW_DATA = "OFF"
 local SETTINGS = "OFF"
 local READY_TO_RECORD = false
 local EXEMPLAR_FILENAME
-local NUM_PAD1, NUM_PAD2, NUM_PAD3, NUM_PAD4, NUM_PAD5, NUM_PAD0, NUM_PAD6,ESCAPE, RETURN
+local NUM_PAD1, NUM_PAD2, NUM_PAD3, NUM_PAD4, NUM_PAD5, NUM_PAD0, NUM_PAD6, NUM_PAD7, ESCAPE, RETURN
 local UP_ARROW,DOWN_ARROW
 local RECORD_F --add to config
 local ELAPSED_F = 0
@@ -18,7 +18,7 @@ local PREV_PLAYER_X,PREV_PLAYER_Y
 local PREV_EXEMPLAR
 local RUN_LOG = "../Run_Logs/NET-Run_"..os.date("%b-%d-%H-%M-%S")..".xml"
 --local NET_VAL = "../Network_Values/NETVal_"..os.date("%b_%d_%H_%M_%S")..".dat"
---local NET_VAL_XML = "../Network_Values/NETVal_"..os.date("%b_%d_%H_%M_%S")..".xml"
+local NET_VAL_XML_Q = "../Network_Values/NETVal_Q_"..os.date("%b_%d_%H_%M_%S")..".xml"
 local NET_TYPE
 local NET_VALUES_FILE 
 local TRAINING_FILE
@@ -44,6 +44,28 @@ local TRAIN_ITERATIONS --add to config
 
 local C --add to config
 local RATE --add to config
+local DISCOUNT_FACTOR = 0.6
+local T = 3
+
+local NETWORK = {
+	I = {},
+	y = {},
+	O = {},
+	w = {},
+	wt = {},
+
+	dx = {},
+	dy = {}
+}
+
+local ACTION_NETWORKS = {
+	ACTION1,
+	ACTION2,
+	ACTION3,
+	ACTION4,
+	ACTION5,
+	ACTION6
+}
 
 local I = {}
 local y = {}
@@ -145,9 +167,19 @@ function readNumpad()
 	end
 
 	if inputs["NumberPad6"] == nil and NUM_PAD6 == true then
+		loadSaveState(STATE_FILE)
+		Q_Learn()
+		NUM_PAD6 = false
+	end
+
+	if inputs["NumberPad7"] == true then
+		NUM_PAD7 = true
+	end
+
+	if inputs["NumberPad7"] == nil and NUM_PAD7 == true then
 		SETTINGS = toggleOption(SETTINGS)
 		TOGGLE_UI = toggleOption(TOGGLE_UI)
-		NUM_PAD6 = false
+		NUM_PAD7 = false
 	end
 
 end
@@ -168,7 +200,7 @@ function drawUI()
 	else
 		readNumpad()
 		if TOGGLE_UI == "ON" then
-			gui.drawBox(10,10,120,130,0xFF000000,0xE1000000)
+			gui.drawBox(10,10,120,150,0xFF000000,0xE1000000)
 			gui.drawText(10,12,"Toggle UI: ",0xFFFFFFFF,10,"Segoe UI")
 			gui.drawText(60,12,"NUM PAD 1",0xFFFFFF00,10,"Segoe UI")
 			gui.drawText(10,32,"Load 1.1: ",0xFFFFFFFF,10,"Segoe UI")
@@ -179,8 +211,10 @@ function drawUI()
 			gui.drawText(60,72,"NUM PAD 4",0xFFFFFF00,10,"Segoe UI")
 			gui.drawText(10,92,"Exploit: ",0xFFFFFFFF,10,"Segoe UI")
 			gui.drawText(60,92,"NUM PAD 5",0xFFFFFF00,10,"Segoe UI")
-			gui.drawText(10,112,"Settings: ",0xFFFFFFFF,10,"Segoe UI")
+			gui.drawText(10,112,"QLearn: ",0xFFFFFFFF,10,"Segoe UI")
 			gui.drawText(60,112,"NUM PAD 6",0xFFFFFF00,10,"Segoe UI")
+			gui.drawText(10,132,"Settings: ",0xFFFFFFFF,10,"Segoe UI")
+			gui.drawText(60,132,"NUM PAD 7",0xFFFFFF00,10,"Segoe UI")
 		end
 	end
 end
@@ -443,49 +477,50 @@ function randomFloat(lower, greater)
     return lower + math.random()  * (greater - lower);
 end
 
-function InitNetwork()
+function InitNetwork(net)
 	for i = LOW_I, HIGH_I, 1 do
-		w[i] = {}
+		net.w[i] = {}
 		for j = LOW_J, HIGH_J , 1 do
-			w[i][j] = randomFloat( -C, C )
+			net.w[i][j] = randomFloat( -C, C )
 		end
 	end
 
 	for j = LOW_J, HIGH_J, 1 do
-		w[j] = {}
+		net.w[j] = {}
 		for k = LOW_K, HIGH_K, 1 do
-			w[j][k] = randomFloat( -C, C)
+			net.w[j][k] = randomFloat( -C, C)
 		end
 	end
 
 	for j = LOW_J, HIGH_J, 1 do
-		wt[j] = randomFloat( -C, C)
+		net.wt[j] = randomFloat( -C, C)
 	end
 
 	for k = LOW_K, HIGH_K, 1 do
-		wt[k] = randomFloat( -C, C)
+		net.wt[k] = randomFloat( -C, C)
 	end
+	return net
 end
 
-function forwardPropigate()
+function forwardPropigate(net)
 	local x 
 	--inputs -> hidden
 	for j = LOW_J, HIGH_J, 1 do
 		x = 0
 		for i = LOW_I, HIGH_I, 1 do
-			--console.log(I[i])
-			x = x + ( I[i] * w[i][j] )
-			y[j] = sigmod( x - wt[j] )
+			x = x + ( net.I[i] * net.w[i][j] )
+			net.y[j] = sigmod( x - net.wt[j] )
 		end
 	end
 	--hidden -> output
 	for k = LOW_K, HIGH_K , 1 do
 		x = 0 
 		for j = LOW_J, HIGH_J , 1 do
-			x = x + ( y[j] * w[j][k] )
-			y[k] = sigmod( x - wt[k] )
+			x = x + ( net.y[j] * net.w[j][k] )
+			net.y[k] = sigmod( x - net.wt[k] )
 		end
 	end
+	return net
 end
 
 function sigmod(x,r)
@@ -529,43 +564,43 @@ function split(str, pat)
 end
 
 
-function logNet(f,t)
+function logNet(f,t,net)
 	local file = io.open(f,"a")
 	file:write("inputs: ")
 	for i = LOW_I, HIGH_I, 1 do
-		file:write(I[i].."|")
+		file:write(net.I[i].."|")
 	end
 	file:write("\nNet Outputs: ")
 	for k = LOW_K, HIGH_K, 1 do
-		file:write(y[k].."|")
+		file:write(net.y[k].."|")
 	end
 	if t=="learn" then
 		file:write(" Exp Outputs: ")
 		for k = LOW_K, HIGH_K, 1 do
-			file:write(O[k].."|")
+			file:write(net.O[k].."|")
 		end
 	end
 	file:write("\n")
 	file:close()
 end
 
-function logNet_XML(f,t)
+function logNet_XML(f,t,net)
 	local file = io.open(f,"a")
 	file:write("<Pass>\n")
 	file:write("<Input>")
 	for i = LOW_I, HIGH_I, 1 do
-		file:write(I[i])
+		file:write(net.I[i])
 	end
 	file:write("</Input>\n")
 	file:write("<Net_Output>")
 	for k = LOW_K, HIGH_K, 1 do
-		file:write(y[k].."|")
+		file:write(net.y[k].."|")
 	end
 	file:write("</Net_Output>\n")
 	if t=="learn" then
 		file:write("<Exp_Output>")
 		for k = LOW_K, HIGH_K, 1 do
-			file:write(O[k].."|")
+			file:write(net.O[k].."|")
 		end
 		file:write("</Exp_Output>\n")
 	end
@@ -592,14 +627,14 @@ function getInputs()
 	return inp
 end
 
-function exploit()
+function exploit(net)
 
 	local inputs = getScreen(VIEW_RADIUS)
 
 	drawData(false)
 	local x = 1 
 	for i = LOW_I, HIGH_I, 1 do
-		I[i] = inputs[x]
+		net.I[i] = inputs[x]
 		x = x + 1
 	end
 
@@ -610,7 +645,7 @@ function exploit()
 	for k = LOW_K, HIGH_K, 1 do
 		local button = "P1 "..ButtonNames[x] 
 		--if round(y[k],1) >= 0.1 then
-		if y[k] > 0.5 then
+		if net.y[k] > 0.5 then
 			outputs[button] = true
 		else
 			outputs[button] = false
@@ -623,7 +658,7 @@ function exploit()
 	return outputs
 end
 
-function parseXMLNetvalues(file)
+function parseXMLNetvalues(file,net)
 	console.log("Loading net values")
 	local e
 	local x
@@ -636,7 +671,7 @@ function parseXMLNetvalues(file)
 			e = split(line,"|")
 			x = 1
 			for j = LOW_J, HIGH_J ,1 do
-				w[index][j] = e[x]
+				net.w[index][j] = e[x]
 				x = x + 1
 			end
 
@@ -646,7 +681,7 @@ function parseXMLNetvalues(file)
 			e = split(line,"|")
 			x = 1
 			for j = LOW_J, HIGH_J, 1 do
-				wt[j] = e[x]
+				net.wt[j] = e[x]
 				x = x +1
 			end
 
@@ -657,7 +692,7 @@ function parseXMLNetvalues(file)
 			e = split(line,"|")
 			x = 1
 			for k = LOW_K, HIGH_K, 1 do
-				w[index][k] = e[x]
+				net.w[index][k] = e[x]
 				x = x +1
 			end
 
@@ -667,12 +702,13 @@ function parseXMLNetvalues(file)
 			e = split(line,"|")
 			x = 1
 			for k = LOW_K, HIGH_K, 1 do
-				wt[k] = e[x]
+				net.wt[k] = e[x]
 				x = x +1
 			end
 		end
 	end
 	console.log("finshed Loading Net values")
+	return net
 end
 
 ---------------------------------------------------------
@@ -702,6 +738,8 @@ function printScreen(screenArray)
 end
 
 function drawHitBoxes()
+	getPlayerPosition()
+	getEnemyScreenPositions()
 	local hitBoxes = getHitBoxes()
 	gui.drawBox(hitBoxes.mario["x1"],hitBoxes.mario["y1"], hitBoxes.mario["x2"], hitBoxes.mario["y2"],0xFF000000,0xE1000000)
 	for i = 1, #hitBoxes.enemy, 1 do
@@ -712,26 +750,34 @@ end
 function drawData(drawPos)
 	printScreen(getScreen(VIEW_RADIUS))
 
-	getPlayerPosition()
-	getEnemyScreenPositions()
-
 	drawHitBoxes()
 
 	if drawPos == true then
-		gui.drawBox(150,10,255,140,0xFF000000,0xA0000000)
-		gui.drawText(152,12,"PlayerX   : "..PLAYER_X,0xFFFFFFFF,10,"Segoe UI")
-		gui.drawText(152,22,"PlayerY   : "..PLAYER_Y,0xFFFFFFFF,10,"Segoe UI")
-		gui.drawText(152,32,"Enemy1X: "..enemyPositons[1]["x"],0xFFFFFFFF,10,"Segoe UI")
-		gui.drawText(152,42,"Enemy1Y: "..enemyPositons[1]["y"],0xFFFFFFFF,10,"Segoe UI")
-		gui.drawText(152,52,"Enemy2X: "..enemyPositons[2]["x"],0xFFFFFFFF,10,"Segoe UI")
-		gui.drawText(152,62,"Enemy2Y: "..enemyPositons[2]["y"],0xFFFFFFFF,10,"Segoe UI")
-		gui.drawText(152,72,"Enemy3X: "..enemyPositons[3]["x"],0xFFFFFFFF,10,"Segoe UI")
-		gui.drawText(152,82,"Enemy3Y: "..enemyPositons[3]["y"],0xFFFFFFFF,10,"Segoe UI")
-		gui.drawText(152,92,"Enemy4X: "..enemyPositons[4]["x"],0xFFFFFFFF,10,"Segoe UI")
-		gui.drawText(152,102,"Enemy4Y: "..enemyPositons[4]["y"],0xFFFFFFFF,10,"Segoe UI")
-		gui.drawText(152,112,"Enemy5X: "..enemyPositons[5]["x"],0xFFFFFFFF,10,"Segoe UI")
-		gui.drawText(152,122,"Enemy5Y: "..enemyPositons[5]["y"],0xFFFFFFFF,10,"Segoe UI")
+		drawPosData()
 	end
+	drawController()
+end	
+
+function drawPosData()
+	getPlayerPosition()
+	getEnemyScreenPositions()
+
+	gui.drawBox(150,10,255,140,0xFF000000,0xA0000000)
+	gui.drawText(152,12,"PlayerX   : "..PLAYER_X,0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,22,"PlayerY   : "..PLAYER_Y,0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,32,"Enemy1X: "..enemyPositons[1]["x"],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,42,"Enemy1Y: "..enemyPositons[1]["y"],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,52,"Enemy2X: "..enemyPositons[2]["x"],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,62,"Enemy2Y: "..enemyPositons[2]["y"],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,72,"Enemy3X: "..enemyPositons[3]["x"],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,82,"Enemy3Y: "..enemyPositons[3]["y"],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,92,"Enemy4X: "..enemyPositons[4]["x"],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,102,"Enemy4Y: "..enemyPositons[4]["y"],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,112,"Enemy5X: "..enemyPositons[5]["x"],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,122,"Enemy5Y: "..enemyPositons[5]["y"],0xFFFFFFFF,10,"Segoe UI")
+end
+
+function drawController()
 	outputs = getKeyPresses()
 
 	--controler output
@@ -744,8 +790,7 @@ function drawData(drawPos)
 	gui.drawRectangle(202,46,10,5,0xFF000000,0xFF000000) --start (not outputed)
 	gui.drawEllipse(217,44,10,10,0xFF000000,highlightKey(outputs,2,0xFF000000)) --B
 	gui.drawEllipse(232,44,10,10,0xFF000000,highlightKey(outputs,1,0xFF000000)) --A
-
-end	
+end
 
 function highlightKey(outputs,key,defaultColour)
 	if outputs[key] == 1 then
@@ -785,31 +830,26 @@ function loadConfig(filename)
 end
 
 function loadNetConfig()
-
 	if NET_TYPE == "Reinforcment" then
-		NUM_INPUTS = ( (VIEW_RADIUS * 2 + 1) * (VIEW_RADIUS * 2 + 1) ) + NUM_ACTIONS
+		ACTION_NETWORKS.ACTION1 = {I = {},y = {},O = {},w = {},wt = {},dx = {},dy = {}}
+		ACTION_NETWORKS.ACTION2 = {I = {},y = {},O = {},w = {},wt = {},dx = {},dy = {}}
+		ACTION_NETWORKS.ACTION3 = {I = {},y = {},O = {},w = {},wt = {},dx = {},dy = {}}
+		ACTION_NETWORKS.ACTION4 = {I = {},y = {},O = {},w = {},wt = {},dx = {},dy = {}}
+		ACTION_NETWORKS.ACTION5 = {I = {},y = {},O = {},w = {},wt = {},dx = {},dy = {}}
+		ACTION_NETWORKS.ACTION6 = {I = {},y = {},O = {},w = {},wt = {},dx = {},dy = {}}
 		NUM_OUTPUTS = 1
-		NET_TOTAL = NUM_INPUTS + NUM_NUERONS + NUM_OUTPUTS
+	end	
+	NUM_INPUTS = (VIEW_RADIUS * 2 + 1) * (VIEW_RADIUS * 2 + 1)  
+
+	NET_TOTAL = NUM_INPUTS + NUM_NUERONS + NUM_OUTPUTS
  
-		LOW_I = 1
-		HIGH_I = NUM_INPUTS 
-		LOW_J = NUM_INPUTS + 1
-		HIGH_J = NUM_INPUTS + NUM_NUERONS
-		LOW_K = NUM_INPUTS + NUM_NUERONS + 1
-		HIGH_K = NUM_INPUTS + NUM_NUERONS + NUM_OUTPUTS		
-	else 
+	LOW_I = 1
+	HIGH_I = NUM_INPUTS 
+	LOW_J = NUM_INPUTS + 1
+	HIGH_J = NUM_INPUTS + NUM_NUERONS
+	LOW_K = NUM_INPUTS + NUM_NUERONS + 1
+	HIGH_K = NUM_INPUTS + NUM_NUERONS + NUM_OUTPUTS
 
-		NUM_INPUTS = (VIEW_RADIUS * 2 + 1) * (VIEW_RADIUS * 2 + 1)  
-
-		NET_TOTAL = NUM_INPUTS + NUM_NUERONS + NUM_OUTPUTS
-	 
-		LOW_I = 1
-		HIGH_I = NUM_INPUTS 
-		LOW_J = NUM_INPUTS + 1
-		HIGH_J = NUM_INPUTS + NUM_NUERONS
-		LOW_K = NUM_INPUTS + NUM_NUERONS + 1
-		HIGH_K = NUM_INPUTS + NUM_NUERONS + NUM_OUTPUTS
-	end
 end
 
 function printVariables()
@@ -963,11 +1003,26 @@ parseXMLNetvalues("../Network_Values/NETVal_Jan_25_18_35_15.xml")
 StoreNetworkValues_XML( "../Network_Values/parseTestAfter2.xml" )
 --]]
 
+function displayQvalues(qValues)
+	gui.drawBox(10,10,130,80,0xFF000000,0xA0000000)
+	gui.drawText(10,12,"Q(x,1): "..qValues[1],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(10,22,"Q(x,2): "..qValues[2],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(10,32,"Q(x,3): "..qValues[3],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(10,42,"Q(x,4): "..qValues[4],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(10,52,"Q(x,5): "..qValues[5],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(10,62,"Q(x,6): "..qValues[6],0xFFFFFFFF,10,"Segoe UI")
+end
 
+function displayXA()
+	gui.drawBox(10,80,130,100,0xFF000000,0xA0000000)
+	for i = 1, HIGH_I,1 do
+		gui.drawText(6+(i*4),82," "..I[i].." ",0xFFFFFFFF,6,"Segoe UI")
+	end
+end
 
 function Q_Learn()
 	for steps = 0, TRAIN_ITERATIONS, 1 do
-
+		--drawData(false)
 		local inputs = getScreen(VIEW_RADIUS)
 
 		--first we pass the state through the net for each possible action and get all the qvalues
@@ -975,46 +1030,37 @@ function Q_Learn()
 
 		--for each action
 		for a = 1, NUM_ACTIONS, 1 do
-
 			--load the the state inputs to pass through net
 			local x = 1 
-			for i = LOW_I, HIGH_I - NUM_ACTIONS, 1 do
-				I[i] = inputs[x]
+			for i = LOW_I, HIGH_I, 1 do
+				ACTION_NETWORKS["ACTION"..a].I[i] = inputs[x]
 				x = x + 1
 			end
 
-			--load the action to take to the network
-			for ia = 1, NUM_ACTIONS, 1 do
-				if ia == a then 
-					i[HIGH_I+ia] = 1
-				else
-					i[HIGH_I+ia] = 0
-				end 
-			end
-
 			--pass the inputs,action through the net
-			forwardPropigate()
-
+			ACTION_NETWORKS["ACTION"..a] = forwardPropigate(ACTION_NETWORKS["ACTION"..a])
 			--add the outputed qvalues to out list of qvalues
-			qValues[#qa + 1] = y[HIGH_K]
+			qValues[#qValues + 1] = ACTION_NETWORKS["ACTION"..a].y[HIGH_K]
 
 		end
-
+		--displayXA()
 		--will be using the bay's therom method to select between exporation vs explotation when choseing the action
 		--but for the mean time we will use the highest(explotation)
-		local qxa = highestQ(qxa)
+		--console.log(#qValues)
+		local qxa = chooseAction(qValues)
 
 		--now set the controler for each according to the action taken
+		--console.log(qxa)
 		local buttons = {}
 		for a = 1, #ButtonNames, 1 do
 			if a == qxa.action then
-				buttons["P1 "..ButtonNames[a]] = 1
+				buttons["P1 "..ButtonNames[a]] = true
 			else
-				buttons["P1 "..ButtonNames[a]] = 0
+				buttons["P1 "..ButtonNames[a]] = false
 			end
 		end
-		joypad.set(buttons)
-
+		--console.log( buttons )
+		joypad.set( buttons )
 		PREV_PLAYER_X = PLAYER_X
 		PREV_PLAYER_Y = PLAYER_Y
 		--execute controler button press and move to next frame/state
@@ -1029,13 +1075,88 @@ function Q_Learn()
 				--TODO:write up report on potental/identifyed problems/resolutions
 			-- *falls into a pit (where PLAYER_Y position falls below 16 pixels, this is ass each tile is a 16x16 sprite so the top of the floor should be on the 16 pixel level )
 		local r = getReinformentValues()
-
-		local ok = r + qxa
-		 
-		--calcualte qTarget and backprop error(prevQ - qTarget)
+		--get the next state
+		inputs = getScreen(VIEW_RADIUS)
 
 
+		displayQvalues(qValues)
+		drawController()
+		
+		--calculate ok
+		--local ok = r + (DISCOUNT_FACTOR *qxa.value)
+
+		--now calulate our yk value and back propigate the error through the net to adjust the weights
+		--set our qvalues list to be empty
+		qValues = {}
+		for a = 1, NUM_ACTIONS, 1 do
+			--load the the state inputs to pass through net
+			local x = 1 
+			for i = LOW_I, HIGH_I, 1 do
+				ACTION_NETWORKS["ACTION"..a].I[i] = inputs[x]
+				x = x + 1
+			end
+			ACTION_NETWORKS["ACTION"..a] = forwardPropigate(ACTION_NETWORKS["ACTION"..a])
+			qValues[#qValues + 1] = ACTION_NETWORKS["ACTION"..a].y[HIGH_K]		
+		end
+
+		local qyb = highestQ(qValues)
+		local ok = r +(DISCOUNT_FACTOR * qyb.value)
+		local yk = qxa.value
+		yk = ((1-RATE) * yk) + (RATE * ok)
+
+		ACTION_NETWORKS["ACTION"..qxa.action] = backPropigate_QValue(yk, ok, ACTION_NETWORKS["ACTION"..qxa.action])
+
+		-- if the resulting action cause mario to die we need to reload the game to the start 
+		--or else if we leave it the reulting jumps in memory could coruppt the net.
+		if hitEnemy() or fellInPit() then
+			loadSaveState(STATE_FILE)
+		end
 	end
+	--StoreNetworkValues( NET_VAL_XML_Q )
+end
+
+function backPropigate_QValue(yk,ok,net)
+	local dw
+
+	net.dy[HIGH_K] = yk - ok
+	--totalError = totalError +  math.pow(dy[k],2) 
+	net.dx[HIGH_K] = ( net.dy[HIGH_K] ) * yk * (1-yk)
+
+	for j = LOW_J, HIGH_J, 1 do
+		local t = 0
+		for k = LOW_K, HIGH_K, 1 do
+			t = t + ( net.dx[k] * net.w[j][k] )
+		end
+		net.dy[j] = t
+		net.dx[j] = (net.dy[j] ) * net.y[j] * ( 1- net.y[j])
+	end
+	-----------------------------------------
+	for j = LOW_J, HIGH_J, 1 do
+		for k = LOW_K, HIGH_K, 1 do
+			dw = net.dx[k] * net.y[j]
+			--logError("outputLayerError.csv",dx[k],dw)
+			net.w[j][k] = net.w[j][k] - (RATE * dw)
+		end
+	end
+
+	for i = LOW_I, HIGH_I, 1 do
+		for j = LOW_J, HIGH_J, 1 do
+			dw = net.dx[j] * net.I[i]
+			--logError("inputLayerError.csv",dx[j],dw)
+			net.w[i][j] = net.w[i][j] - (RATE * dw)
+		end 
+	end
+
+	for k = LOW_K, HIGH_K, 1 do
+		dw = net.dx[k] * (-1)
+		net.wt[k] = net.wt[k] - ( RATE * dw )
+	end
+
+	for j = LOW_J, HIGH_J, 1 do
+		dw = net.dx[j] * (-1)
+		net.wt[j] = net.wt[j] - ( RATE * dw)
+	end
+	return net
 end
 
 function highestQ(qValues)
@@ -1044,26 +1165,55 @@ function highestQ(qValues)
 		action
 	}
 
-	for i = 1, #qValues, q do
+	for i = 1, #qValues, 1 do
 		if i == 1 then
 			q.value = qValues[i]
 			q.action = i
-		elseif qValues[i] >q.value then
+		elseif qValues[i] > q.value then
 				q.value = qValues[i]
 				q.action = i
 		end
 	end	
-	return a
+	return q
+end
+
+
+function chooseAction( qValues )
+	local q = {
+		values,
+		action,
+		boltzD
+	}
+
+	local x = 0
+	for b = 1, #qValues, 1 do
+		x = x + (math.exp(qValues[b]) / T)
+	end
+	for i = 1, #qValues, 1 do
+		if i == 1 then
+			q.value = qValues[i]
+			q.action = i 
+			q.boltzD = math.exp(qValues[i] / T ) / x
+		end
+		local p = math.exp(qValues[i] / T ) / x
+		if p > q.boltzD then
+			q.value = qValues[i]
+			q.action = i 
+			q.boltzD = p
+		end
+	end
+	return q
 end
 
 function getReinformentValues( )
 	if hitEnemy() then 
-		return -2
+		return -0.75
 	elseif fellInPit() then
-		return -2
+		return -0.75
 	elseif PREV_PLAYER_X < PLAYER_X then
-		return 1
+		return 2
 	end
+	return -0.25
 end
 
 function hitEnemy(  )
@@ -1098,9 +1248,52 @@ function fellInPit()
 	return false
 end
 
+function StoreNetworkValues( f )
+	local file = io.open(f,"a")
+	file:write("##Inputs->Hidden weights\n")
+	for i = LOW_I, HIGH_I, 1 do
+		for j = LOW_J, HIGH_J , 1 do
+			file:write(w[i][j].."|")
+		end
+			file:write("\n")
+	end
+	file:write("##Tresholds\n")
+	for j = LOW_J, HIGH_J, 1 do
+		file:write(wt[j].."|")
+	end
+	file:write("\n##Hidden->Output weights\n")
+	for j = LOW_J, HIGH_J, 1 do
+		for k = LOW_K, HIGH_K, 1 do
+			file:write(w[j][k].."|")
+		end
+			file:write("\n")
+	end
+	file:write("##Tresholds\n")
+	for k = LOW_K, HIGH_K, 1 do
+		file:write(wt[k].."|")
+	end
+	file:close()
+end
+
 
 loadConfig("../config.txt")
-InitNetwork()
+
+console.log(NET_TYPE)
+
+if NET_TYPE == "Reinforcment" then
+	
+	ACTION_NETWORKS.ACTION1 = InitNetwork(ACTION_NETWORKS.ACTION1 )
+	ACTION_NETWORKS.ACTION2 = InitNetwork(ACTION_NETWORKS.ACTION2 )
+	ACTION_NETWORKS.ACTION3 = InitNetwork(ACTION_NETWORKS.ACTION3 )
+	ACTION_NETWORKS.ACTION4 = InitNetwork(ACTION_NETWORKS.ACTION4 )
+	ACTION_NETWORKS.ACTION5 = InitNetwork(ACTION_NETWORKS.ACTION5 )
+	ACTION_NETWORKS.ACTION6 = InitNetwork(ACTION_NETWORKS.ACTION6 )
+		
+else
+	InitNetwork(NETWORK)
+end
+
+
 while true do
 	if SHOW_DATA == "ON" then
 		drawData(false)
@@ -1111,7 +1304,7 @@ while true do
 		--check if the user hits 5 again to end the net execute.
 		
 		resetIfStuck(10,4)
-		joypad.set(exploit())
+		--joypad.set(exploit())
 		readNumpad()
 		--if isPlayerDead() then
 		--	loadSaveState(STATE_FILE)
@@ -1119,5 +1312,6 @@ while true do
 	else
 		drawUI()
 	end
+	drawPosData()
 	emu.frameadvance()
 end
