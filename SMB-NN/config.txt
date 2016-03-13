@@ -3,7 +3,7 @@
 # Filename of the exemplar file used for training the network
 # ../Exemplar_Files/ 
 # ../Pre-Processed_Exemplars/
-TRAINING_FILE ../Pre-Processed_Exemplars/exemplars_0001-Reduced-Inputs_4.dat
+TRAINING_FILE ../Pre-Processed_Exemplars/exemplars_0001_ND-Reduced-Inputs_2.dat
 
 # number of frames the user can record exemplars for
 RECORD_F 2500
@@ -22,7 +22,7 @@ C 0.1
 RATE 0.5
 
 # number of times the network trains from the exemplar file
-TRAIN_ITERATIONS 30000
+TRAIN_ITERATIONS 100
 
 # xml file with the trained network values
 NET_VALUES_FILE ../Network_Values/NET-Values.xml
@@ -31,4 +31,4 @@ NET_VALUES_FILE ../Network_Values/NET-Values.xml
 # Supervised
 # Reinforcment uses a modified net where the actions are passed in as inputs and outputs the 1 value,
 # - the network is now used to represent the lookup table used in q-learning 
-NET_TYPE Reinforcment
+NET_TYPE Supervised

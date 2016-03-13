@@ -45,7 +45,7 @@ local TRAIN_ITERATIONS --add to config
 local C --add to config
 local RATE --add to config
 local DISCOUNT_FACTOR = 0.6
-local T = 3
+local T = 0.6
 
 local NETWORK = {
 	I = {},
@@ -125,7 +125,7 @@ function readNumpad()
 	end
 
 	if inputs["NumberPad4"] == nil and NUM_PAD4 == true then
-		parseXMLNetvalues(NET_VALUES_FILE)
+		parseXMLNetvalues(NET_VALUES_FILE,NETWORK)
 		NUM_PAD4 = false
 	end
 
@@ -564,7 +564,7 @@ function split(str, pat)
 end
 
 
-function logNet(f,t,net)
+function logNet(f,net)
 	local file = io.open(f,"a")
 	file:write("inputs: ")
 	for i = LOW_I, HIGH_I, 1 do
@@ -584,7 +584,7 @@ function logNet(f,t,net)
 	file:close()
 end
 
-function logNet_XML(f,t,net)
+function logNet_XML(f,net)
 	local file = io.open(f,"a")
 	file:write("<Pass>\n")
 	file:write("<Input>")
@@ -638,7 +638,7 @@ function exploit(net)
 		x = x + 1
 	end
 
-	forwardPropigate()
+	forwardPropigate(net)
 
 	local outputs = {}
 	local x = 1
@@ -653,7 +653,7 @@ function exploit(net)
 		x = x + 1
 	end	
 
-	logNet_XML(RUN_LOG)
+	logNet_XML(RUN_LOG,net)
 
 	return outputs
 end
@@ -1206,26 +1206,28 @@ function chooseAction( qValues )
 end
 
 function getReinformentValues( )
+	--if the agent was hit by a enemy penilise
 	if hitEnemy() then 
-		return -0.75
+		return -1.25
+	--if the agent fell in a hole penelise
 	elseif fellInPit() then
-		return -0.75
+		return -1.25
+	--if the agent got further in the level reward
 	elseif PREV_PLAYER_X < PLAYER_X then
-		return 2
+		return 0.2
+	--if the agents speed increased reward
+	--this is due the x value not being imediatly changed when 
+	--the left or right action is executed
+	elseif memory.readbyte(0x0057) ~= 0 then
+		return 0.1
 	end
+	--otherwise if the action was of no benifit penilise
 	return -0.25
 end
 
 function hitEnemy(  )
-	local hitBoxes = getHitBoxes()
-	for i = 1, #hitBoxes.enemy, 1 do 
-		if	hitBoxes.mario["x1"] < hitBoxes.enemy[i]["x1"] 
-			and hitBoxes.mario["x2"] > hitBoxes.enemy[i]["x1"]
-			and hitBoxes.mario["y1"] < hitBoxes.enemy[i]["y1"]
-			and hitBoxes.mario["y2"] > hitBoxes.enemy[i]["y2"]
-		then
-			return true
-		end
+	if memory.readbyte(0x000E) == 0x000B then
+		return true
 	end
 	return false
 end
@@ -1290,7 +1292,7 @@ if NET_TYPE == "Reinforcment" then
 	ACTION_NETWORKS.ACTION6 = InitNetwork(ACTION_NETWORKS.ACTION6 )
 		
 else
-	InitNetwork(NETWORK)
+	NETWORK = InitNetwork(NETWORK)
 end
 
 
@@ -1304,7 +1306,7 @@ while true do
 		--check if the user hits 5 again to end the net execute.
 		
 		resetIfStuck(10,4)
-		--joypad.set(exploit())
+		joypad.set(exploit(NETWORK))
 		readNumpad()
 		--if isPlayerDead() then
 		--	loadSaveState(STATE_FILE)
@@ -1312,6 +1314,5 @@ while true do
 	else
 		drawUI()
 	end
-	drawPosData()
 	emu.frameadvance()
 end
