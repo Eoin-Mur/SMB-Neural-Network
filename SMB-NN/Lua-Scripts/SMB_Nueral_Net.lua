@@ -14,6 +14,7 @@ local RECORD_F --add to config
 local ELAPSED_F = 0
 local VIEW_RADIUS --add to config
 local PLAYER_X, PLAYER_Y
+local PREV_PLAYER_X,PREV_PLAYER_Y
 local PREV_EXEMPLAR
 local RUN_LOG = "../Run_Logs/NET-Run_"..os.date("%b-%d-%H-%M-%S")..".xml"
 --local NET_VAL = "../Network_Values/NETVal_"..os.date("%b_%d_%H_%M_%S")..".dat"
@@ -220,9 +221,13 @@ function getHitBoxes()
 		enemy = {}
 	}
 
-	for i = 0x04AC, 0x04AF, 0x0001 do
-		hitBoxes.mario[#hitBoxes.mario+1] = memory.readbyte(i)
-	end
+	hitBoxes.mario = 
+	{
+		["x1"] = memory.readbyte( 0x04AC ),
+		["y1"] = memory.readbyte( 0x04AD ),
+		["x2"] = memory.readbyte( 0x04AE ),
+		["y2"] = memory.readbyte( 0x04AF )
+	}
 
 	--0x000F-0x0013
 	local address = 0x04B0
@@ -231,10 +236,10 @@ function getHitBoxes()
 		if memory.readbyte(i) == 1 then
 			hitBoxes.enemy[x] = 
 			{ 
-				["x1"] = memory.readbyte(address), 
-				["y1"] = memory.readbyte(address+0x0001) ,
-				["x2"] = memory.readbyte(address+0x0002), 
-				["y2"] = memory.readbyte(address+0x0003) 
+				["x1"] = memory.readbyte( address ), 
+				["y1"] = memory.readbyte( address + 0x0001 ),
+				["x2"] = memory.readbyte( address + 0x0002 ), 
+				["y2"] = memory.readbyte( address + 0x0003 ) 
 			}
 			x = x + 1
 		end
@@ -696,6 +701,14 @@ function printScreen(screenArray)
 	end
 end
 
+function drawHitBoxes()
+	local hitBoxes = getHitBoxes()
+	gui.drawBox(hitBoxes.mario["x1"],hitBoxes.mario["y1"], hitBoxes.mario["x2"], hitBoxes.mario["y2"],0xFF000000,0xE1000000)
+	for i = 1, #hitBoxes.enemy, 1 do
+		gui.drawBox(hitBoxes.enemy[i]["x1"],hitBoxes.enemy[i]["y1"], hitBoxes.enemy[i]["x2"], hitBoxes.enemy[i]["y2"],0xFF000000,0xE1000000)
+	end
+end
+
 function drawData(drawPos)
 	printScreen(getScreen(VIEW_RADIUS))
 
@@ -1002,6 +1015,8 @@ function Q_Learn()
 		end
 		joypad.set(buttons)
 
+		PREV_PLAYER_X = PLAYER_X
+		PREV_PLAYER_Y = PLAYER_Y
 		--execute controler button press and move to next frame/state
 		emu.frameadvance()
 
@@ -1013,8 +1028,10 @@ function Q_Learn()
 				-- then the state that initaly caused it...... i need to write up all this more detail outside of comments..
 				--TODO:write up report on potental/identifyed problems/resolutions
 			-- *falls into a pit (where PLAYER_Y position falls below 16 pixels, this is ass each tile is a 16x16 sprite so the top of the floor should be on the 16 pixel level )
-		getReinformentValues()
+		local r = getReinformentValues()
 
+		local ok = r + qxa
+		 
 		--calcualte qTarget and backprop error(prevQ - qTarget)
 
 
@@ -1034,19 +1051,53 @@ function highestQ(qValues)
 		elseif qValues[i] >q.value then
 				q.value = qValues[i]
 				q.action = i
-			end
-		end	
-		return a
-	end
+		end
+	end	
+	return a
+end
 
-
-function drawHitBoxes()
-	local hitBoxes = getHitBoxes()
-	gui.drawBox(hitBoxes.mario[1],hitBoxes.mario[2], hitBoxes.mario[3], hitBoxes.mario[4],0xFF000000,0xE1000000)
-	for i = 1, #hitBoxes.enemy, 1 do
-		gui.drawBox(hitBoxes.enemy[i]["x1"],hitBoxes.enemy[i]["y1"], hitBoxes.enemy[i]["x2"], hitBoxes.enemy[i]["y2"],0xFF000000,0xE1000000)
+function getReinformentValues( )
+	if hitEnemy() then 
+		return -2
+	elseif fellInPit() then
+		return -2
+	elseif PREV_PLAYER_X < PLAYER_X then
+		return 1
 	end
 end
+
+function hitEnemy(  )
+	local hitBoxes = getHitBoxes()
+	for i = 1, #hitBoxes.enemy, 1 do 
+		if	hitBoxes.mario["x1"] < hitBoxes.enemy[i]["x1"] 
+			and hitBoxes.mario["x2"] > hitBoxes.enemy[i]["x1"]
+			and hitBoxes.mario["y1"] < hitBoxes.enemy[i]["y1"]
+			and hitBoxes.mario["y2"] > hitBoxes.enemy[i]["y2"]
+		then
+			return true
+		end
+	end
+	return false
+end
+
+--[[
+
+	x1,y1------
+	|					| 
+	|					| 	x1,y1--|
+	|					|		|      |
+	|-----x2,y2 	|--x2,y2
+
+]]--
+
+function fellInPit()
+	getPlayerPosition()
+	if(PLAYER_Y * memory.readbyte(0x00B5) > 200 ) then
+		return true
+	end
+	return false
+end
+
 
 loadConfig("../config.txt")
 InitNetwork()
