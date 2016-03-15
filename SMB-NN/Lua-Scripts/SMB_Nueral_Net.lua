@@ -1,6 +1,6 @@
-local STATE_FILE = "C:/Users/eoinm_000/Documents/GitHub/fourth-year-project/SMB-NN/Save_States/SMB_L1-1_laptop.State" --laptop
+--local STATE_FILE = "C:/Users/eoinm_000/Documents/GitHub/fourth-year-project/SMB-NN/Save_States/SMB_L1-1_laptop.State" --laptop
 
---local STATE_FILE = "C:/Users/Eoin/Documents/GitHub/fourth-year-project/SMB-NN/Save_States/SMB_L1-1.State" -- desktop
+local STATE_FILE = "C:/Users/Eoin/Documents/GitHub/fourth-year-project/SMB-NN/Save_States/SMB_L1-1.State" -- desktop
 local TOGGLE_UI = "ON" 
 local RECORD_EXEMPLARS = "OFF"
 local EXPLOIT_NET = "OFF"
@@ -45,7 +45,10 @@ local TRAIN_ITERATIONS --add to config
 local C --add to config
 local RATE --add to config
 local DISCOUNT_FACTOR = 0.6
-local T = 1.5
+local maxQT = 1.0/2
+local minQT = 1.0/50
+local T = 0.6
+local prevState
 
 local NETWORK = {
 	I = {},
@@ -751,11 +754,10 @@ function drawData(drawPos)
 	printScreen(getScreen(VIEW_RADIUS))
 
 	drawHitBoxes()
-
+	drawController()
 	if drawPos == true then
 		drawPosData()
 	end
-	drawController()
 end	
 
 function drawPosData()
@@ -1004,18 +1006,18 @@ StoreNetworkValues_XML( "../Network_Values/parseTestAfter2.xml" )
 --]]
 
 function displayQvalues(qValues,a)
-	gui.drawBox(10,10,130,80,0xFF000000,0xA0000000)
-	gui.drawText(10,12,"Q(x,A): "..qValues[1],highlight(1,a),10,"Segoe UI")
-	gui.drawText(10,22,"Q(x,B): "..qValues[2],highlight(2,a),10,"Segoe UI")
-	gui.drawText(10,32,"Q(x,DOWN): "..qValues[3],highlight(3,a),10,"Segoe UI")
-	gui.drawText(10,42,"Q(x,LEFT): "..qValues[4],highlight(4,a),10,"Segoe UI")
-	gui.drawText(10,52,"Q(x,RIGHT): "..qValues[5],highlight(5,a),10,"Segoe UI")
-	gui.drawText(10,62,"Q(x,UP): "..qValues[6],highlight(6,a),10,"Segoe UI")
+	gui.drawBox(10,60,150,150,0xFF000000,0xA0000000)
+	gui.drawText(10,62,"Q(x,A)    : "..qValues[1],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(10,72,"Q(x,B)    : "..qValues[2],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(10,82,"Q(x,DOWN) : "..qValues[3],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(10,92,"Q(x,LEFT) : "..qValues[4],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(10,102,"Q(x,RIGHT): "..qValues[5],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(10,112,"Q(x,UP)   : "..qValues[6],0xFFFFFFFF,10,"Segoe UI")
 end
 
 function displayR( r )
-	gui.drawBox(10,80,130,100,0xFF000000,0xA0000000)
-	gui.drawText(10,82,"Reinforcment: "..r,0xFFFFFFFF,10,"Segoe UI")
+	gui.drawBox(10,120,130,140,0xFF000000,0xA0000000)
+	gui.drawText(10,122,"Reinforcment: "..r,0xFFFFFFFF,10,"Segoe UI")
 end
 
 function displayX(inputs)
@@ -1026,10 +1028,21 @@ function displayX(inputs)
 end
 
 function Q_Learn()
+	local keys = input.get()
 	for steps = 0, TRAIN_ITERATIONS, 1 do
+
+		if keys["NumberPad2"] == true then
+			NUM_PAD2 = true
+		end
+
+		if keys["NumberPad2"] == nil and NUM_PAD2 == true then
+			loadSaveState(STATE_FILE)
+			NUM_PAD2 = false
+		end
+
 		--drawData(false)
 		local inputs = getScreen(VIEW_RADIUS)
-
+		prevState = table.concat( inputs, "")
 		--first we pass the state through the net for each possible action and get all the qvalues
 		local qValues = {}
 
@@ -1042,19 +1055,18 @@ function Q_Learn()
 				x = x + 1
 			end
 
-			--pass the inputs,action through the net
+			--pass the inputs through the net
 			ACTION_NETWORKS["ACTION"..a] = forwardPropigate(ACTION_NETWORKS["ACTION"..a])
 			--add the outputed qvalues to out list of qvalues
 			qValues[#qValues + 1] = ACTION_NETWORKS["ACTION"..a].y[HIGH_K]
 
 		end
 		--displayXA()
-		--will be using the bay's therom method to select between exporation vs explotation when choseing the action
-		--but for the mean time we will use the highest(explotation)
 		--console.log(#qValues)
-		local qValues_Boltz = calculateBolzmannDist(qValues)
-		local qxa = chooseHighestBoltz(qValues_Boltz)
-
+		local qValues_Boltz = calculateBolzmannDist(qValues, 0.3)
+		local qxa = chooseAction(qValues_Boltz)
+		displayQvalues(qValues,qxa.action)
+		drawData(false)
 		--now set the controler for each according to the action taken
 		--console.log(qxa)
 		local buttons = {}
@@ -1066,11 +1078,20 @@ function Q_Learn()
 			end
 		end
 		--console.log( buttons )
-		joypad.set( buttons )
-		PREV_PLAYER_X = PLAYER_X
-		PREV_PLAYER_Y = PLAYER_Y
 		--execute controler button press and move to next frame/state
-		emu.frameadvance()
+		local elapsedFrames = 0
+		while prevState == table.concat(getScreen(VIEW_RADIUS), "") do
+			if elapsedFrames > 30 then
+				break
+			end
+			displayQvalues(qValues,qxa.action)
+			drawData(false)
+			joypad.set( buttons )
+			PREV_PLAYER_X = PLAYER_X
+			PREV_PLAYER_Y = PLAYER_Y
+			emu.frameadvance()
+			elapsedFrames = elapsedFrames + 1
+		end
 
 		--get our reincforment values for the new state.
 		--reward if mario progressed further into the level(PLAYER_X increases) NOTE:may need to alter this
@@ -1084,11 +1105,7 @@ function Q_Learn()
 		--get the next state
 		inputs = getScreen(VIEW_RADIUS)
 
-
-		displayQvalues(qValues,qxa.action)
-		drawController()
 		displayR(r)
-		displayX(inputs)
 		--calculate ok
 		--local ok = r + (DISCOUNT_FACTOR *qxa.value)
 
@@ -1107,7 +1124,9 @@ function Q_Learn()
 		end
 
 		local qyb = highestQ(qValues)
-		local ok = r +(DISCOUNT_FACTOR * qyb.value)
+
+		local ok = r + (DISCOUNT_FACTOR * qyb.value)
+
 		local yk = qxa.value
 		yk = ((1-RATE) * yk) + (RATE * ok)
 
@@ -1197,7 +1216,21 @@ function chooseHighestBoltz( QA )
 	return highest
 end
 
-function calculateBolzmannDist(qValues)
+function chooseAction( QA )
+	local x = randomFloat(0,1)
+	local i = 0
+	local sum = 0
+	while sum < x do 
+		i = i+1
+		sum = sum + QA[i].boltzD;
+		if i == 6 and sum < x then
+			return QA[6]
+		end
+	end
+	return QA[i]
+end
+
+function calculateBolzmannDist(qValues, T )
 	local QA_list = {}
 
 	local x = 0
@@ -1215,22 +1248,26 @@ function calculateBolzmannDist(qValues)
 	return QA_list
 end
 
+
+
 function getReinformentValues( )
 	--if the agent was hit by a enemy penilise
 	if hitEnemy() then 
-		return -2.5
+		return -0.75
 	--if the agent fell in a hole penelise
 	elseif fellInPit() then
-		return -2.5
+		return -0.75
 	--if the agent got further in the level reward
 	elseif PREV_PLAYER_X < PLAYER_X or ( memory.readbyte(0x0057) ~= 0 and memory.readbyte(0x0003) == 1) then
-		return 1
+		return 0.4
+	--elseif memory.readbyte(0x009F) >=252 then
+	--	return 0.2
 	end
 	--if the agents speed increased reward
 	--this is due the x value not being imediatly changed when 
 	--the left or right action is executed
 	--otherwise if the action was of no benifit penilise
-	return -1.2
+	return -0.1
 end
 
 function hitEnemy(  )
@@ -1252,7 +1289,7 @@ end
 
 function fellInPit()
 	getPlayerPosition()
-	if(PLAYER_Y * memory.readbyte(0x00B5) > 200 ) then
+	if(PLAYER_Y * memory.readbyte(0x00B5) > 198 ) then
 		return true
 	end
 	return false
@@ -1287,6 +1324,7 @@ end
 
 
 loadConfig("../config.txt")
+console.log(NET_TYPE)
 
 if NET_TYPE == "Reinforcment" then
 	
@@ -1320,6 +1358,6 @@ while true do
 	else
 		drawUI()
 	end
-	drawPosData()
+	--drawPosData()
 	emu.frameadvance()
 end
