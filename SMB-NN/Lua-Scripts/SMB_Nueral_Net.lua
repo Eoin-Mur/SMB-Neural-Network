@@ -1,6 +1,6 @@
---local STATE_FILE = "C:/Users/eoinm_000/Documents/GitHub/fourth-year-project/SMB-NN/Save_States/SMB_L1-1_laptop.State" --laptop
+local STATE_FILE = "C:/Users/eoinm_000/Documents/GitHub/fourth-year-project/SMB-NN/Save_States/SMB_L1-1_laptop.State" --laptop
 
-local STATE_FILE = "C:/Users/Eoin/Documents/GitHub/fourth-year-project/SMB-NN/Save_States/SMB_L1-1.State" -- desktop
+--local STATE_FILE = "C:/Users/Eoin/Documents/GitHub/fourth-year-project/SMB-NN/Save_States/SMB_L1-1.State" -- desktop
 local TOGGLE_UI = "ON" 
 local RECORD_EXEMPLARS = "OFF"
 local EXPLOIT_NET = "OFF"
@@ -45,7 +45,7 @@ local TRAIN_ITERATIONS --add to config
 local C --add to config
 local RATE --add to config
 local DISCOUNT_FACTOR = 0.6
-local T = 0.6
+local T = 1.5
 
 local NETWORK = {
 	I = {},
@@ -1003,20 +1003,25 @@ parseXMLNetvalues("../Network_Values/NETVal_Jan_25_18_35_15.xml")
 StoreNetworkValues_XML( "../Network_Values/parseTestAfter2.xml" )
 --]]
 
-function displayQvalues(qValues)
+function displayQvalues(qValues,a)
 	gui.drawBox(10,10,130,80,0xFF000000,0xA0000000)
-	gui.drawText(10,12,"Q(x,1): "..qValues[1],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(10,22,"Q(x,2): "..qValues[2],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(10,32,"Q(x,3): "..qValues[3],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(10,42,"Q(x,4): "..qValues[4],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(10,52,"Q(x,5): "..qValues[5],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(10,62,"Q(x,6): "..qValues[6],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(10,12,"Q(x,A): "..qValues[1],highlight(1,a),10,"Segoe UI")
+	gui.drawText(10,22,"Q(x,B): "..qValues[2],highlight(2,a),10,"Segoe UI")
+	gui.drawText(10,32,"Q(x,DOWN): "..qValues[3],highlight(3,a),10,"Segoe UI")
+	gui.drawText(10,42,"Q(x,LEFT): "..qValues[4],highlight(4,a),10,"Segoe UI")
+	gui.drawText(10,52,"Q(x,RIGHT): "..qValues[5],highlight(5,a),10,"Segoe UI")
+	gui.drawText(10,62,"Q(x,UP): "..qValues[6],highlight(6,a),10,"Segoe UI")
 end
 
-function displayXA()
+function displayR( r )
 	gui.drawBox(10,80,130,100,0xFF000000,0xA0000000)
+	gui.drawText(10,82,"Reinforcment: "..r,0xFFFFFFFF,10,"Segoe UI")
+end
+
+function displayX(inputs)
+	gui.drawBox(10,100,130,110,0xFF000000,0xA0000000)
 	for i = 1, HIGH_I,1 do
-		gui.drawText(6+(i*4),82," "..I[i].." ",0xFFFFFFFF,6,"Segoe UI")
+		gui.drawText(6+(i*4),102," "..inputs[i].." ",0xFFFFFFFF,6,"Segoe UI")
 	end
 end
 
@@ -1047,7 +1052,8 @@ function Q_Learn()
 		--will be using the bay's therom method to select between exporation vs explotation when choseing the action
 		--but for the mean time we will use the highest(explotation)
 		--console.log(#qValues)
-		local qxa = chooseAction(qValues)
+		local qValues_Boltz = calculateBolzmannDist(qValues)
+		local qxa = chooseHighestBoltz(qValues_Boltz)
 
 		--now set the controler for each according to the action taken
 		--console.log(qxa)
@@ -1079,9 +1085,10 @@ function Q_Learn()
 		inputs = getScreen(VIEW_RADIUS)
 
 
-		displayQvalues(qValues)
+		displayQvalues(qValues,qxa.action)
 		drawController()
-		
+		displayR(r)
+		displayX(inputs)
 		--calculate ok
 		--local ok = r + (DISCOUNT_FACTOR *qxa.value)
 
@@ -1178,51 +1185,52 @@ function highestQ(qValues)
 end
 
 
-function chooseAction( qValues )
-	local q = {
-		values,
-		action,
-		boltzD
-	}
+function chooseHighestBoltz( QA )
+
+	local highest = QA[1]
+
+	for i = 2, #QA, 1 do
+		if QA[i].boltzD > highest.boltzD then
+			highest = QA[i]
+		end
+	end
+	return highest
+end
+
+function calculateBolzmannDist(qValues)
+	local QA_list = {}
 
 	local x = 0
 	for b = 1, #qValues, 1 do
 		x = x + (math.exp(qValues[b]) / T)
 	end
 	for i = 1, #qValues, 1 do
-		if i == 1 then
-			q.value = qValues[i]
-			q.action = i 
-			q.boltzD = math.exp(qValues[i] / T ) / x
-		end
-		local p = math.exp(qValues[i] / T ) / x
-		if p > q.boltzD then
-			q.value = qValues[i]
-			q.action = i 
-			q.boltzD = p
-		end
+		QA_list[#QA_list+1] = 
+		{
+			value = qValues[i],
+			action = i,
+			boltzD = (math.exp(qValues[i] / T ) / x)
+		}	
 	end
-	return q
+	return QA_list
 end
 
 function getReinformentValues( )
 	--if the agent was hit by a enemy penilise
 	if hitEnemy() then 
-		return -1.25
+		return -2.5
 	--if the agent fell in a hole penelise
 	elseif fellInPit() then
-		return -1.25
+		return -2.5
 	--if the agent got further in the level reward
-	elseif PREV_PLAYER_X < PLAYER_X then
-		return 0.2
+	elseif PREV_PLAYER_X < PLAYER_X or ( memory.readbyte(0x0057) ~= 0 and memory.readbyte(0x0003) == 1) then
+		return 1
+	end
 	--if the agents speed increased reward
 	--this is due the x value not being imediatly changed when 
 	--the left or right action is executed
-	elseif memory.readbyte(0x0057) ~= 0 then
-		return 0.1
-	end
 	--otherwise if the action was of no benifit penilise
-	return -0.25
+	return -1.2
 end
 
 function hitEnemy(  )
@@ -1280,8 +1288,6 @@ end
 
 loadConfig("../config.txt")
 
-console.log(NET_TYPE)
-
 if NET_TYPE == "Reinforcment" then
 	
 	ACTION_NETWORKS.ACTION1 = InitNetwork(ACTION_NETWORKS.ACTION1 )
@@ -1314,5 +1320,6 @@ while true do
 	else
 		drawUI()
 	end
+	drawPosData()
 	emu.frameadvance()
 end
