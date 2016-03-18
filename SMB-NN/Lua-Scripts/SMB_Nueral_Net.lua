@@ -1012,12 +1012,12 @@ StoreNetworkValues_XML( "../Network_Values/parseTestAfter2.xml" )
 
 function displayQvalues(qValues)
 	gui.drawBox(10,60,122,130,0xFF000000,0xA0000000)
-	gui.drawText(10,62,"Q(x,A): "..qValues[1],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(10,72,"Q(x,B): "..qValues[2],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(10,82,"Q(x,D): "..qValues[3],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(10,92,"Q(x,L): "..qValues[4],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(10,102,"Q(x,R): "..qValues[5],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(10,112,"Q(x,U): "..qValues[6],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(10,62,"Q(x,A): "..qValues[1].value,0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(10,72,"Q(x,B): "..qValues[2].value,0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(10,82,"Q(x,D): "..qValues[3].value,0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(10,92,"Q(x,L): "..qValues[4].value,0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(10,102,"Q(x,R): "..qValues[5].value,0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(10,112,"Q(x,U): "..qValues[6].value,0xFFFFFFFF,10,"Segoe UI")
 end
 
 function displayBoltzValues(qValues_Boltz)
@@ -1072,7 +1072,11 @@ function Q_Learn()
 			--pass the inputs through the net
 			forwardPropigate(ACTION_NETWORKS["ACTION"..a])
 			--add the outputed qvalues to out list of qvalues
-			qValues[#qValues + 1] = ACTION_NETWORKS["ACTION"..a].y[HIGH_K]
+			qValues[#qValues + 1] = 
+			{
+				value = ACTION_NETWORKS["ACTION"..a].y[HIGH_K],
+				state = table.concat( inputs, "")
+			}
 
 		end
 		--displayXA()
@@ -1096,7 +1100,7 @@ function Q_Learn()
 		--execute controler button press and move to next frame/state
 		local elapsedFrames = 0
 		while prevState == table.concat(getScreen(VIEW_RADIUS), "") do
-			if elapsedFrames > 100 then -- if after 100 frames mario hasnt reached a new state then break to allow for a new action to be tried
+			if elapsedFrames > 180 then -- if after 100 frames mario hasnt reached a new state then break to allow for a new action to be tried
 				break
 			end
 			displayQvalues(qValues)
@@ -1106,6 +1110,7 @@ function Q_Learn()
 			PREV_PLAYER_X = PLAYER_X
 			PREV_PLAYER_Y = PLAYER_Y
 			emu.frameadvance()
+			resetTime( )
 			elapsedFrames = elapsedFrames + 1
 		end
 
@@ -1136,15 +1141,27 @@ function Q_Learn()
 				x = x + 1
 			end
 			forwardPropigate(ACTION_NETWORKS["ACTION"..a])
-			qValues[#qValues + 1] = ACTION_NETWORKS["ACTION"..a].y[HIGH_K]		
+			qValues[#qValues + 1] = 
+			{
+				value = ACTION_NETWORKS["ACTION"..a].y[HIGH_K],
+				state = table.concat( inputs, "")
+			}
 		end
 
 		local qyb = highestQ(qValues)
-
+		
 		local ok = r + (DISCOUNT_FACTOR * qyb.value)
+
 
 		local yk = qxa.value
 		yk = ((1-RATE) * yk) + (RATE * ok)
+		--yk = yk + RATE * (ok - yk)
+
+		console.log("X = ")
+		console.log(qxa)
+		console.log("Y = ")
+		console.log(qyb)
+		console.log("R = "..r)
 
 		backPropigate_QValue(yk, ok, ACTION_NETWORKS["ACTION"..qxa.action])
 
@@ -1204,16 +1221,19 @@ end
 function highestQ(qValues)
 	local q = {
 		value,
-		action
+		action,
+		state
 	}
 
 	for i = 1, #qValues, 1 do
 		if i == 1 then
-			q.value = qValues[i]
+			q.value = qValues[i].value
 			q.action = i
-		elseif qValues[i] > q.value then
-				q.value = qValues[i]
+			q.state = qValues[i].state
+		elseif qValues[i].value > q.value then
+				q.value = qValues[i].value
 				q.action = i
+				q.state = qValues[i].state
 		end
 	end	
 	return q
@@ -1250,14 +1270,15 @@ function calculateBolzmannDist(qValues, T )
 
 	local x = 0
 	for b = 1, #qValues, 1 do
-		x = x + math.exp(qValues[b] / T)
+		x = x + math.exp(qValues[b].value / T)
 	end
 	for i = 1, #qValues, 1 do
 		QA_list[#QA_list+1] = 
 		{
-			value = qValues[i],
+			value = qValues[i].value,
+			state = qValues[i].state,
 			action = i,
-			boltzD = (math.exp(qValues[i] / T ) / x)
+			boltzD = (math.exp(qValues[i].value / T ) / x)
 		}	
 	end
 	return QA_list
@@ -1272,17 +1293,56 @@ function temperature(steps)
 	end
 end
 
+function  closerOverObject( ... )
+	-- body
+end
+
+function  exploitQNet()
+	drawData(false)
+	local inputs = getScreen(VIEW_RADIUS)
+		--first we pass the state through the net for each possible action and get all the qvalues
+	local qValues = {}
+
+	--for each action
+	for a = 1, NUM_ACTIONS, 1 do
+		--load the the state inputs to pass through net
+		local x = 1 
+		for i = LOW_I, HIGH_I, 1 do
+			ACTION_NETWORKS["ACTION"..a].I[i] = inputs[x]
+			x = x + 1
+		end
+
+		--pass the inputs through the net
+		forwardPropigate(ACTION_NETWORKS["ACTION"..a])
+		--add the outputed qvalues to out list of qvalues
+		qValues[#qValues + 1] = ACTION_NETWORKS["ACTION"..a].y[HIGH_K]
+	end
+
+	local qxa = highestQ(qValues)
+	displayQvalues(qValues)
+	local buttons = {}
+	for a = 1, #ButtonNames, 1 do
+		if a == qxa.action then
+			buttons["P1 "..ButtonNames[a]] = true
+		else
+			buttons["P1 "..ButtonNames[a]] = false
+		end
+	end
+
+	joypad.set( buttons )
+
+end
 
 function getReinformentValues( )
 	--if the agent was hit by a enemy penilise
 	if hitEnemy() then 
-		return -0.75
+		return -5
 	--if the agent fell in a hole penelise
 	elseif fellInPit() then
-		return -0.75
+		return -5
 	--if the agent got further in the level reward
 	elseif PREV_PLAYER_X < PLAYER_X then
-		return 0.2
+		return 0.5
 	--elseif memory.readbyte(0x009F) >=252 then
 	--	return 0.2
 	end
@@ -1290,7 +1350,7 @@ function getReinformentValues( )
 	--this is due the x value not being imediatly changed when 
 	--the left or right action is executed
 	--otherwise if the action was of no benifit penilise
-	return -0.1
+	return 0
 end
 
 function hitEnemy(  )
@@ -1316,6 +1376,14 @@ function fellInPit()
 		return true
 	end
 	return false
+end
+
+function resetTime( )
+	if memory.readbyte(0x07F8) == 1 then
+		memory.writebyte(0x07F8,0x0009) 
+		memory.writebyte(0x07F9,0x0009) 
+		memory.writebyte(0x07FA,0x0009) 
+	end
 end
 
 function StoreQLearningNetworkValues_XML(f)
@@ -1360,7 +1428,7 @@ function StoreQLearningNetworkValues_XML(f)
 end
 
 function parseXMLActionNetvalues(file,net,a)
-	console.log("Loading net values")
+	console.log("Loading net values for: "..a)
 	local e
 	local x
 	local index 
@@ -1417,7 +1485,7 @@ function parseXMLActionNetvalues(file,net,a)
 			end
 		end --end inblock
 	end
-	console.log("finshed Loading Net values")
+	console.log("Finshed Loading net values for: "..a)
 	return net
 end
 
@@ -1446,13 +1514,16 @@ while true do
 		recordExemplars()
 	elseif EXPLOIT_NET == "ON" then
 		--check if the user hits 5 again to end the net execute.
-		
-		resetIfStuck(10,4)
-		joypad.set(exploit(NETWORK))
-		readNumpad()
-		--if isPlayerDead() then
-		--	loadSaveState(STATE_FILE)
-		--end
+		if NET_TYPE == "Reinforcment" then
+			exploitQNet()
+		else
+			resetIfStuck(10,4)
+			joypad.set(exploit(NETWORK))
+			readNumpad()
+			--if isPlayerDead() then
+			--	loadSaveState(STATE_FILE)
+			--end
+		end
 	else
 		drawUI()
 	end

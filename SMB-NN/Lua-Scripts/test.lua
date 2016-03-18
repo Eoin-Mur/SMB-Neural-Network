@@ -18,3 +18,39 @@ end
 print(" = ".. ans)
 
 print("\np(x|A) = "..math.exp(0.72975714961339 / 0.02) / ans)
+
+
+
+
+print("-----------------")
+
+qya = 0.5
+qxa = 0.5
+r = 1
+dis = 0.6
+rate = 0.5
+
+
+ok = r + (dis * qya)
+print("Ok = "..ok)
+
+yk = qxa
+yk = yk + rate * (ok - yk)
+
+print("yK = "..yk)
+
+print("yk - ok = "..yk - ok)
+
+
+yk2 = qxa
+yk2 = (1-rate)*yk2+dis*(ok)
+print("yk2 = ".. yk2)
+
+function randomFloat(lower, greater)
+    return lower + math.random()  * (greater - lower);
+end
+
+print(randomFloat(0,0))
+
+
+yk = yk + RATE * (ok - yk)
