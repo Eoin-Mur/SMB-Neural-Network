@@ -1005,16 +1005,25 @@ parseXMLNetvalues("../Network_Values/NETVal_Jan_25_18_35_15.xml")
 StoreNetworkValues_XML( "../Network_Values/parseTestAfter2.xml" )
 --]]
 
-function displayQvalues(qValues,a)
-	gui.drawBox(10,60,150,150,0xFF000000,0xA0000000)
-	gui.drawText(10,62,"Q(x,A)    : "..qValues[1],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(10,72,"Q(x,B)    : "..qValues[2],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(10,82,"Q(x,DOWN) : "..qValues[3],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(10,92,"Q(x,LEFT) : "..qValues[4],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(10,102,"Q(x,RIGHT): "..qValues[5],0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(10,112,"Q(x,UP)   : "..qValues[6],0xFFFFFFFF,10,"Segoe UI")
+function displayQvalues(qValues)
+	gui.drawBox(10,60,122,130,0xFF000000,0xA0000000)
+	gui.drawText(10,62,"Q(x,A): "..qValues[1],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(10,72,"Q(x,B): "..qValues[2],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(10,82,"Q(x,D): "..qValues[3],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(10,92,"Q(x,L): "..qValues[4],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(10,102,"Q(x,R): "..qValues[5],0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(10,112,"Q(x,U): "..qValues[6],0xFFFFFFFF,10,"Segoe UI")
 end
 
+function displayBoltzValues(qValues_Boltz)
+	gui.drawBox(10,130,122,200,0xFF000000,0xA0000000)
+	gui.drawText(10,132,"P(x|A): "..qValues_Boltz[1].boltzD,0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(10,142,"P(x|B): "..qValues_Boltz[2].boltzD,0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(10,152,"P(x|D): "..qValues_Boltz[3].boltzD,0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(10,162,"P(x|L): "..qValues_Boltz[4].boltzD,0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(10,172,"P(x|R): "..qValues_Boltz[5].boltzD,0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(10,182,"P(x|U): "..qValues_Boltz[6].boltzD,0xFFFFFFFF,10,"Segoe UI")
+end
 function displayR( r )
 	gui.drawBox(10,120,130,140,0xFF000000,0xA0000000)
 	gui.drawText(10,122,"Reinforcment: "..r,0xFFFFFFFF,10,"Segoe UI")
@@ -1063,9 +1072,10 @@ function Q_Learn()
 		end
 		--displayXA()
 		--console.log(#qValues)
-		local qValues_Boltz = calculateBolzmannDist(qValues, 0.3)
+		local qValues_Boltz = calculateBolzmannDist(qValues, minQT)
 		local qxa = chooseAction(qValues_Boltz)
-		displayQvalues(qValues,qxa.action)
+		displayQvalues(qValues)
+		displayBoltzValues(qValues_Boltz)
 		drawData(false)
 		--now set the controler for each according to the action taken
 		--console.log(qxa)
@@ -1084,7 +1094,8 @@ function Q_Learn()
 			if elapsedFrames > 30 then
 				break
 			end
-			displayQvalues(qValues,qxa.action)
+			displayQvalues(qValues)
+			displayBoltzValues(qValues_Boltz)
 			drawData(false)
 			joypad.set( buttons )
 			PREV_PLAYER_X = PLAYER_X
@@ -1105,7 +1116,7 @@ function Q_Learn()
 		--get the next state
 		inputs = getScreen(VIEW_RADIUS)
 
-		displayR(r)
+		--displayR(r)
 		--calculate ok
 		--local ok = r + (DISCOUNT_FACTOR *qxa.value)
 
@@ -1205,7 +1216,6 @@ end
 
 
 function chooseHighestBoltz( QA )
-
 	local highest = QA[1]
 
 	for i = 2, #QA, 1 do
@@ -1218,9 +1228,10 @@ end
 
 function chooseAction( QA )
 	local x = randomFloat(0,1)
+	console.log(x)
 	local i = 0
 	local sum = 0
-	while sum < x do 
+	while sum < x do
 		i = i+1
 		sum = sum + QA[i].boltzD;
 		if i == 6 and sum < x then
@@ -1235,7 +1246,7 @@ function calculateBolzmannDist(qValues, T )
 
 	local x = 0
 	for b = 1, #qValues, 1 do
-		x = x + (math.exp(qValues[b]) / T)
+		x = x + math.exp(qValues[b] / T)
 	end
 	for i = 1, #qValues, 1 do
 		QA_list[#QA_list+1] = 
@@ -1247,7 +1258,6 @@ function calculateBolzmannDist(qValues, T )
 	end
 	return QA_list
 end
-
 
 
 function getReinformentValues( )
