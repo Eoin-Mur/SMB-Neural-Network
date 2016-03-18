@@ -44,7 +44,7 @@ local TRAIN_ITERATIONS --add to config
 
 local C --add to config
 local RATE --add to config
-local DISCOUNT_FACTOR = 0.6
+local DISCOUNT_FACTOR = 0.9
 local maxQT = 1.0/2
 local minQT = 1.0/50
 local prevState
@@ -517,7 +517,7 @@ function forwardPropigate(net)
 		x = 0
 		for i = LOW_I, HIGH_I, 1 do
 			x = x + ( net.I[i] * net.w[i][j] )
-			net.y[j] = sigmod( x - net.wt[j] )
+			net.y[j] = bipolarSigmod( x - net.wt[j] , 2)
 		end
 	end
 	--hidden -> output
@@ -525,7 +525,7 @@ function forwardPropigate(net)
 		x = 0 
 		for j = LOW_J, HIGH_J , 1 do
 			x = x + ( net.y[j] * net.w[j][k] )
-			net.y[k] = sigmod( x - net.wt[k] )
+			net.y[k] = bipolarSigmod( x - net.wt[k] ,2)
 		end
 	end
 	return net
@@ -539,8 +539,12 @@ function sigmod(x,r)
 	end
 end
 
-function bipolarSigmod(x)
-	return round((2/math.pi) * math.atan(x),3)
+function bipolarSigmod(x,r)
+	if r ~= nil then
+		return round((2/math.pi) * math.atan(x),r)
+	else
+		return (2/math.pi) * math.atan(x)
+	end
 end
 
 
@@ -1063,10 +1067,8 @@ function Q_Learn()
 		--for each action
 		for a = 1, NUM_ACTIONS, 1 do
 			--load the the state inputs to pass through net
-			local x = 1 
 			for i = LOW_I, HIGH_I, 1 do
-				ACTION_NETWORKS["ACTION"..a].I[i] = inputs[x]
-				x = x + 1
+				ACTION_NETWORKS["ACTION"..a].I[i] = inputs[i]
 			end
 
 			--pass the inputs through the net
@@ -1075,7 +1077,7 @@ function Q_Learn()
 			qValues[#qValues + 1] = 
 			{
 				value = ACTION_NETWORKS["ACTION"..a].y[HIGH_K],
-				state = table.concat( inputs, "")
+				state =  inputs
 			}
 
 		end
@@ -1084,7 +1086,7 @@ function Q_Learn()
 		local qValues_Boltz = calculateBolzmannDist(qValues, temperature(steps))
 		local qxa = chooseAction(qValues_Boltz)
 		displayQvalues(qValues)
-		displayBoltzValues(qValues_Boltz)
+		--displayBoltzValues(qValues_Boltz)
 		drawData(false)
 		--now set the controler for each according to the action taken
 		--console.log(qxa)
@@ -1104,7 +1106,7 @@ function Q_Learn()
 				break
 			end
 			displayQvalues(qValues)
-			displayBoltzValues(qValues_Boltz)
+			--displayBoltzValues(qValues_Boltz)
 			drawData(false)
 			joypad.set( buttons )
 			PREV_PLAYER_X = PLAYER_X
@@ -1135,16 +1137,14 @@ function Q_Learn()
 		qValues = {}
 		for a = 1, NUM_ACTIONS, 1 do
 			--load the the state inputs to pass through net
-			local x = 1 
 			for i = LOW_I, HIGH_I, 1 do
-				ACTION_NETWORKS["ACTION"..a].I[i] = inputs[x]
-				x = x + 1
+				ACTION_NETWORKS["ACTION"..a].I[i] = inputs[i]
 			end
 			forwardPropigate(ACTION_NETWORKS["ACTION"..a])
 			qValues[#qValues + 1] = 
 			{
 				value = ACTION_NETWORKS["ACTION"..a].y[HIGH_K],
-				state = table.concat( inputs, "")
+				state = inputs
 			}
 		end
 
@@ -1157,11 +1157,18 @@ function Q_Learn()
 		yk = ((1-RATE) * yk) + (RATE * ok)
 		--yk = yk + RATE * (ok - yk)
 
+--[[
 		console.log("X = ")
 		console.log(qxa)
 		console.log("Y = ")
 		console.log(qyb)
 		console.log("R = "..r)
+--]]
+		--pass back the original state to the network we are updating
+		for i = LOW_I, HIGH_I, 1 do
+			ACTION_NETWORKS["ACTION"..qxa.action].I[i] = qxa.state[i]
+		end
+		forwardPropigate(ACTION_NETWORKS["ACTION"..qxa.action])
 
 		backPropigate_QValue(yk, ok, ACTION_NETWORKS["ACTION"..qxa.action])
 
@@ -1336,13 +1343,13 @@ end
 function getReinformentValues( )
 	--if the agent was hit by a enemy penilise
 	if hitEnemy() then 
-		return -5
+		return -0.5
 	--if the agent fell in a hole penelise
 	elseif fellInPit() then
-		return -5
+		return -0.5
 	--if the agent got further in the level reward
 	elseif PREV_PLAYER_X < PLAYER_X then
-		return 0.5
+		return 0.02
 	--elseif memory.readbyte(0x009F) >=252 then
 	--	return 0.2
 	end
@@ -1350,7 +1357,7 @@ function getReinformentValues( )
 	--this is due the x value not being imediatly changed when 
 	--the left or right action is executed
 	--otherwise if the action was of no benifit penilise
-	return 0
+	return -0.01
 end
 
 function hitEnemy(  )
