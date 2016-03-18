@@ -18,7 +18,7 @@ local PREV_PLAYER_X,PREV_PLAYER_Y
 local PREV_EXEMPLAR
 local RUN_LOG = "../Run_Logs/NET-Run_"..os.date("%b-%d-%H-%M-%S")..".xml"
 --local NET_VAL = "../Network_Values/NETVal_"..os.date("%b_%d_%H_%M_%S")..".dat"
-local NET_VAL_XML_Q = "../Network_Values/NETVal_Q_"..os.date("%b_%d_%H_%M_%S")..".xml"
+local NET_VAL_XML_Q = "../Network_Values/NETVal_Q-Learning_"..os.date("%b_%d_%H_%M_%S")..".xml"
 local NET_TYPE
 local NET_VALUES_FILE 
 local TRAINING_FILE
@@ -128,7 +128,13 @@ function readNumpad()
 	end
 
 	if inputs["NumberPad4"] == nil and NUM_PAD4 == true then
-		parseXMLNetvalues(NET_VALUES_FILE,NETWORK)
+		if NET_TYPE == "Reinforcment" then
+			for a = 1, NUM_ACTIONS, 1 do
+				parseXMLActionNetvalues(NET_VALUES_FILE,ACTION_NETWORKS["ACTION"..a],a)
+			end
+		else
+			parseXMLNetvalues(NET_VALUES_FILE,NETWORK)
+		end
 		NUM_PAD4 = false
 	end
 
@@ -1065,7 +1071,7 @@ function Q_Learn()
 			end
 
 			--pass the inputs through the net
-			ACTION_NETWORKS["ACTION"..a] = forwardPropigate(ACTION_NETWORKS["ACTION"..a])
+			forwardPropigate(ACTION_NETWORKS["ACTION"..a])
 			--add the outputed qvalues to out list of qvalues
 			qValues[#qValues + 1] = ACTION_NETWORKS["ACTION"..a].y[HIGH_K]
 
@@ -1130,7 +1136,7 @@ function Q_Learn()
 				ACTION_NETWORKS["ACTION"..a].I[i] = inputs[x]
 				x = x + 1
 			end
-			ACTION_NETWORKS["ACTION"..a] = forwardPropigate(ACTION_NETWORKS["ACTION"..a])
+			forwardPropigate(ACTION_NETWORKS["ACTION"..a])
 			qValues[#qValues + 1] = ACTION_NETWORKS["ACTION"..a].y[HIGH_K]		
 		end
 
@@ -1141,7 +1147,7 @@ function Q_Learn()
 		local yk = qxa.value
 		yk = ((1-RATE) * yk) + (RATE * ok)
 
-		ACTION_NETWORKS["ACTION"..qxa.action] = backPropigate_QValue(yk, ok, ACTION_NETWORKS["ACTION"..qxa.action])
+		backPropigate_QValue(yk, ok, ACTION_NETWORKS["ACTION"..qxa.action])
 
 		-- if the resulting action cause mario to die we need to reload the game to the start 
 		--or else if we leave it the reulting jumps in memory could coruppt the net.
@@ -1149,7 +1155,7 @@ function Q_Learn()
 			loadSaveState(STATE_FILE)
 		end
 	end
-	--StoreNetworkValues( NET_VAL_XML_Q )
+	StoreQLearningNetworkValues_XML( NET_VAL_XML_Q , ACTION_NETWORKS)
 end
 
 function backPropigate_QValue(yk,ok,net)
@@ -1228,7 +1234,6 @@ end
 
 function chooseAction( QA )
 	local x = randomFloat(0,1)
-	console.log(x)
 	local i = 0
 	local sum = 0
 	while sum < x do
@@ -1269,7 +1274,7 @@ function getReinformentValues( )
 		return -0.75
 	--if the agent got further in the level reward
 	elseif PREV_PLAYER_X < PLAYER_X or ( memory.readbyte(0x0057) ~= 0 and memory.readbyte(0x0003) == 1) then
-		return 0.4
+		return 0.2
 	--elseif memory.readbyte(0x009F) >=252 then
 	--	return 0.2
 	end
@@ -1305,36 +1310,111 @@ function fellInPit()
 	return false
 end
 
-function StoreNetworkValues( f )
-	local file = io.open(f,"a")
-	file:write("##Inputs->Hidden weights\n")
-	for i = LOW_I, HIGH_I, 1 do
-		for j = LOW_J, HIGH_J , 1 do
-			file:write(w[i][j].."|")
+function StoreQLearningNetworkValues_XML(f)
+	local file = io.open(f,"w")
+	file:write('<?xml version="1.0" encoding="UTF-8"?>\n')
+	file:write('<Q-Learning_NETWORKS>\n')
+	for a = 1 , NUM_ACTIONS, 1 do
+		file:write('<ACTION_NET'..a..">\n")
+		file:write('<IL_HL_Weights>\n')
+		for i = LOW_I, HIGH_I, 1 do
+			file:write('<i'..i..'>')
+			for j = LOW_J, HIGH_J , 1 do
+				file:write(ACTION_NETWORKS["ACTION"..a].w[i][j].."|")
+			end
+				file:write('</i'..i..'>\n')
 		end
-			file:write("\n")
-	end
-	file:write("##Tresholds\n")
-	for j = LOW_J, HIGH_J, 1 do
-		file:write(wt[j].."|")
-	end
-	file:write("\n##Hidden->Output weights\n")
-	for j = LOW_J, HIGH_J, 1 do
+		file:write('<iT>')
+		for j = LOW_J, HIGH_J, 1 do
+			file:write(ACTION_NETWORKS["ACTION"..a].wt[j].."|")
+		end
+		file:write('</iT>\n')
+		file:write('</IL_HL_Weights>\n')
+
+		file:write('<HL_OL_Weights>\n')
+		for j = LOW_J, HIGH_J, 1 do
+			file:write('<j'..j..'>')
+			for k = LOW_K, HIGH_K, 1 do
+				file:write(ACTION_NETWORKS["ACTION"..a].w[j][k].."|")
+			end
+				file:write('</j'..j..'>\n')
+		end
+		file:write('<jT>')
 		for k = LOW_K, HIGH_K, 1 do
-			file:write(w[j][k].."|")
+			file:write(ACTION_NETWORKS["ACTION"..a].wt[k].."|")
 		end
-			file:write("\n")
+		file:write('</jT>\n')
+		file:write('</HL_OL_Weights>\n')
+		file:write('</ACTION_NET'..a..">\n")
 	end
-	file:write("##Tresholds\n")
-	for k = LOW_K, HIGH_K, 1 do
-		file:write(wt[k].."|")
-	end
+	file:write('</Q-Learning_NETWORKS>\n')
 	file:close()
+end
+
+function parseXMLActionNetvalues(file,net,a)
+	console.log("Loading net values")
+	local e
+	local x
+	local index 
+	local inBlock = false
+	for line in io.lines(file) do
+		if line:match("<ACTION_NET"..a..">") then 
+			inBlock = true
+		elseif line:match("</ACTION_NET"..a..">") then 
+			inBlock = false
+			return net
+		end
+		if inBlock then
+			--input to hiden layer values
+			if line:match("<i%d+>(.+)</i%d+>") then
+				index = tonumber(line:match("<i(%d+)>"))
+				line = line:match("<i%d+>(.+)</i%d+>")
+				e = split(line,"|")
+				x = 1
+				for j = LOW_J, HIGH_J ,1 do
+					net.w[index][j] = e[x]
+					x = x + 1
+				end
+
+			--input to hidden layer thresholds
+			elseif line:match("<iT>(.+)</iT>") then
+				line = line:match("<iT>(.+)</iT>")
+				e = split(line,"|")
+				x = 1
+				for j = LOW_J, HIGH_J, 1 do
+					net.wt[j] = e[x]
+					x = x +1
+				end
+
+			--hiden to output layer
+			elseif line:match("<j%d+>(.+)</j%d+>") then
+				index = tonumber(line:match("<j(%d+)>"))
+				line = line:match("<j%d+>(.+)</j%d+>")
+				e = split(line,"|")
+				x = 1
+				for k = LOW_K, HIGH_K, 1 do
+					net.w[index][k] = e[x]
+					x = x +1
+				end
+
+			--hidden to output layer thresholds
+			elseif line:match("<jT>(.+)</jT>") then
+				line = line:match("<jT>(.+)</jT>")
+				e = split(line,"|")
+				x = 1
+				for k = LOW_K, HIGH_K, 1 do
+					net.wt[k] = e[x]
+					x = x +1
+				end
+			end
+		end --end inblock
+	end
+	console.log("finshed Loading Net values")
+	return net
 end
 
 
 loadConfig("../config.txt")
-console.log(NET_TYPE)
 
 if NET_TYPE == "Reinforcment" then
 	

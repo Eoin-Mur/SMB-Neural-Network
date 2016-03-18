@@ -25,7 +25,7 @@ RATE 0.5
 TRAIN_ITERATIONS 10000
 
 # xml file with the trained network values
-NET_VALUES_FILE ../Network_Values/NET-Values_2R_200_selUntilClass.xml
+NET_VALUES_FILE ../Network_Values/NETVal_Q-Learning_Mar_18_15_07_43.xml
 
 # Network types:
 # Supervised
