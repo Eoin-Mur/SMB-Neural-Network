@@ -17,3 +17,10 @@ increasing the input radius to 3 might help? will try dont want to just change t
 -----------------------------------------
 training on 3 radius 200 it .4 rate 
 -net didnt jump over first enemy output .359 going to try increse the rate, re-train and see if it has a possitive effect.
+
+
+
+------------------------
+
+Something is up with the backpropigation of qvalues, when the reward greater then 1 of less then -1 the weights get messed up along the way as the outputed qvalue 
+goes straight to 1 and will never get out of that.

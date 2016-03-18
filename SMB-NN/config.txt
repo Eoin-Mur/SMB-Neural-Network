@@ -13,7 +13,7 @@ RECORD_F 2500
 VIEW_RADIUS 2
 
 # number of nureons in the hidden layer
-NUM_NUERONS 10
+NUM_NUERONS 20
 
 # constant to determine the inital network weights
 C 0.1

@@ -47,7 +47,6 @@ local RATE --add to config
 local DISCOUNT_FACTOR = 0.6
 local maxQT = 1.0/2
 local minQT = 1.0/50
-local T = 0.6
 local prevState
 
 local NETWORK = {
@@ -826,11 +825,11 @@ function loadConfig(filename)
 	NET_VALUES_FILE = config["NET_VALUES_FILE"]
 	TRAINING_FILE = config["TRAINING_FILE"]
 	RECORD_F = tonumber(config["RECORD_F"])
-	VIEW_RADIUS = config["VIEW_RADIUS"]
-	NUM_NUERONS = config["NUM_NUERONS"]
-	C = config["C"]
-	RATE = config["RATE"]
-	TRAIN_ITERATIONS = config["TRAIN_ITERATIONS"]
+	VIEW_RADIUS = tonumber(config["VIEW_RADIUS"])
+	NUM_NUERONS = tonumber(config["NUM_NUERONS"])
+	C = tonumber(config["C"])
+	RATE = tonumber(config["RATE"])
+	TRAIN_ITERATIONS = tonumber(config["TRAIN_ITERATIONS"])
 	NET_TYPE = config["NET_TYPE"];
 
 	loadNetConfig()
@@ -1078,7 +1077,7 @@ function Q_Learn()
 		end
 		--displayXA()
 		--console.log(#qValues)
-		local qValues_Boltz = calculateBolzmannDist(qValues, minQT)
+		local qValues_Boltz = calculateBolzmannDist(qValues, temperature(steps))
 		local qxa = chooseAction(qValues_Boltz)
 		displayQvalues(qValues)
 		displayBoltzValues(qValues_Boltz)
@@ -1097,7 +1096,7 @@ function Q_Learn()
 		--execute controler button press and move to next frame/state
 		local elapsedFrames = 0
 		while prevState == table.concat(getScreen(VIEW_RADIUS), "") do
-			if elapsedFrames > 30 then
+			if elapsedFrames > 100 then -- if after 100 frames mario hasnt reached a new state then break to allow for a new action to be tried
 				break
 			end
 			displayQvalues(qValues)
@@ -1264,6 +1263,15 @@ function calculateBolzmannDist(qValues, T )
 	return QA_list
 end
 
+function temperature(steps)
+	if steps >= TRAIN_ITERATIONS then
+		return minQT
+	else
+		local e = steps / TRAIN_ITERATIONS
+		return minQT + (1-e) *(maxQT-minQT)
+	end
+end
+
 
 function getReinformentValues( )
 	--if the agent was hit by a enemy penilise
@@ -1273,7 +1281,7 @@ function getReinformentValues( )
 	elseif fellInPit() then
 		return -0.75
 	--if the agent got further in the level reward
-	elseif PREV_PLAYER_X < PLAYER_X or ( memory.readbyte(0x0057) ~= 0 and memory.readbyte(0x0003) == 1) then
+	elseif PREV_PLAYER_X < PLAYER_X then
 		return 0.2
 	--elseif memory.readbyte(0x009F) >=252 then
 	--	return 0.2
