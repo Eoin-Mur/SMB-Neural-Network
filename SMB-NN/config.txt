@@ -16,7 +16,7 @@ VIEW_RADIUS 2
 NUM_NUERONS 20
 
 # constant to determine the inital network weights
-C 0.1
+C 0
 
 # Learning Rate 0 < C < 1
 RATE 0.5

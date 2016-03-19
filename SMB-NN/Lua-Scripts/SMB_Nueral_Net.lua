@@ -44,10 +44,11 @@ local TRAIN_ITERATIONS --add to config
 
 local C --add to config
 local RATE --add to config
-local DISCOUNT_FACTOR = 0.9
+local DISCOUNT_FACTOR = 1
 local maxQT = 1.0/2
 local minQT = 1.0/50
-local prevState
+local xState
+local yState
 
 local NETWORK = {
 	I = {},
@@ -620,6 +621,109 @@ function logNet_XML(f,net)
 	file:close()
 end
 
+function StoreQLearningNetworkValues_XML(f)
+	local file = io.open(f,"w")
+	file:write('<?xml version="1.0" encoding="UTF-8"?>\n')
+	file:write('<Q-Learning_NETWORKS>\n')
+	for a = 1 , NUM_ACTIONS, 1 do
+		file:write('<ACTION_NET'..a..">\n")
+		file:write('<IL_HL_Weights>\n')
+		for i = LOW_I, HIGH_I, 1 do
+			file:write('<i'..i..'>')
+			for j = LOW_J, HIGH_J , 1 do
+				file:write(ACTION_NETWORKS["ACTION"..a].w[i][j].."|")
+			end
+				file:write('</i'..i..'>\n')
+		end
+		file:write('<iT>')
+		for j = LOW_J, HIGH_J, 1 do
+			file:write(ACTION_NETWORKS["ACTION"..a].wt[j].."|")
+		end
+		file:write('</iT>\n')
+		file:write('</IL_HL_Weights>\n')
+
+		file:write('<HL_OL_Weights>\n')
+		for j = LOW_J, HIGH_J, 1 do
+			file:write('<j'..j..'>')
+			for k = LOW_K, HIGH_K, 1 do
+				file:write(ACTION_NETWORKS["ACTION"..a].w[j][k].."|")
+			end
+				file:write('</j'..j..'>\n')
+		end
+		file:write('<jT>')
+		for k = LOW_K, HIGH_K, 1 do
+			file:write(ACTION_NETWORKS["ACTION"..a].wt[k].."|")
+		end
+		file:write('</jT>\n')
+		file:write('</HL_OL_Weights>\n')
+		file:write('</ACTION_NET'..a..">\n")
+	end
+	file:write('</Q-Learning_NETWORKS>\n')
+	file:close()
+end
+
+function parseXMLActionNetvalues(file,net,a)
+	console.log("Loading net values for: "..a)
+	local e
+	local x
+	local index 
+	local inBlock = false
+	for line in io.lines(file) do
+		if line:match("<ACTION_NET"..a..">") then 
+			inBlock = true
+		elseif line:match("</ACTION_NET"..a..">") then 
+			inBlock = false
+			return net
+		end
+		if inBlock then
+			--input to hiden layer values
+			if line:match("<i%d+>(.+)</i%d+>") then
+				index = tonumber(line:match("<i(%d+)>"))
+				line = line:match("<i%d+>(.+)</i%d+>")
+				e = split(line,"|")
+				x = 1
+				for j = LOW_J, HIGH_J ,1 do
+					net.w[index][j] = e[x]
+					x = x + 1
+				end
+
+			--input to hidden layer thresholds
+			elseif line:match("<iT>(.+)</iT>") then
+				line = line:match("<iT>(.+)</iT>")
+				e = split(line,"|")
+				x = 1
+				for j = LOW_J, HIGH_J, 1 do
+					net.wt[j] = e[x]
+					x = x +1
+				end
+
+			--hiden to output layer
+			elseif line:match("<j%d+>(.+)</j%d+>") then
+				index = tonumber(line:match("<j(%d+)>"))
+				line = line:match("<j%d+>(.+)</j%d+>")
+				e = split(line,"|")
+				x = 1
+				for k = LOW_K, HIGH_K, 1 do
+					net.w[index][k] = e[x]
+					x = x +1
+				end
+
+			--hidden to output layer thresholds
+			elseif line:match("<jT>(.+)</jT>") then
+				line = line:match("<jT>(.+)</jT>")
+				e = split(line,"|")
+				x = 1
+				for k = LOW_K, HIGH_K, 1 do
+					net.wt[k] = e[x]
+					x = x +1
+				end
+			end
+		end --end inblock
+	end
+	console.log("Finshed Loading net values for: "..a)
+	return net
+end
+
 function getInputs()
 	local inp = {}
 	local screen = getScreen(VIEW_RADIUS)
@@ -1060,17 +1164,14 @@ function Q_Learn()
 
 		--drawData(false)
 		local inputs = getScreen(VIEW_RADIUS)
-		prevState = table.concat( inputs, "")
 		--first we pass the state through the net for each possible action and get all the qvalues
 		local qValues = {}
-
 		--for each action
 		for a = 1, NUM_ACTIONS, 1 do
 			--load the the state inputs to pass through net
 			for i = LOW_I, HIGH_I, 1 do
 				ACTION_NETWORKS["ACTION"..a].I[i] = inputs[i]
 			end
-
 			--pass the inputs through the net
 			forwardPropigate(ACTION_NETWORKS["ACTION"..a])
 			--add the outputed qvalues to out list of qvalues
@@ -1081,15 +1182,13 @@ function Q_Learn()
 			}
 
 		end
-		--displayXA()
-		--console.log(#qValues)
 		local qValues_Boltz = calculateBolzmannDist(qValues, temperature(steps))
 		local qxa = chooseAction(qValues_Boltz)
+		xState = qxa.state
 		displayQvalues(qValues)
 		--displayBoltzValues(qValues_Boltz)
 		drawData(false)
 		--now set the controler for each according to the action taken
-		--console.log(qxa)
 		local buttons = {}
 		for a = 1, #ButtonNames, 1 do
 			if a == qxa.action then
@@ -1101,7 +1200,7 @@ function Q_Learn()
 		--console.log( buttons )
 		--execute controler button press and move to next frame/state
 		local elapsedFrames = 0
-		while prevState == table.concat(getScreen(VIEW_RADIUS), "") do
+		while table.concat(xState,"") == table.concat(getScreen(VIEW_RADIUS), "") do
 			if elapsedFrames > 180 then -- if after 100 frames mario hasnt reached a new state then break to allow for a new action to be tried
 				break
 			end
@@ -1124,7 +1223,6 @@ function Q_Learn()
 				-- then the state that initaly caused it...... i need to write up all this more detail outside of comments..
 				--TODO:write up report on potental/identifyed problems/resolutions
 			-- *falls into a pit (where PLAYER_Y position falls below 16 pixels, this is ass each tile is a 16x16 sprite so the top of the floor should be on the 16 pixel level )
-		local r = getReinformentValues()
 		--get the next state
 		inputs = getScreen(VIEW_RADIUS)
 
@@ -1149,7 +1247,10 @@ function Q_Learn()
 		end
 
 		local qyb = highestQ(qValues)
-		
+		yState = qyb.state
+		local r = getReinformentValues()
+
+
 		local ok = r + (DISCOUNT_FACTOR * qyb.value)
 
 
@@ -1168,6 +1269,7 @@ function Q_Learn()
 		for i = LOW_I, HIGH_I, 1 do
 			ACTION_NETWORKS["ACTION"..qxa.action].I[i] = qxa.state[i]
 		end
+
 		forwardPropigate(ACTION_NETWORKS["ACTION"..qxa.action])
 
 		backPropigate_QValue(yk, ok, ACTION_NETWORKS["ACTION"..qxa.action])
@@ -1184,7 +1286,7 @@ end
 function backPropigate_QValue(yk,ok,net)
 	local dw
 
-	net.dy[HIGH_K] = yk - ok
+	net.dy[HIGH_K] = ok - yk
 	--totalError = totalError +  math.pow(dy[k],2) 
 	net.dx[HIGH_K] = ( net.dy[HIGH_K] ) * yk * (1-yk)
 
@@ -1300,8 +1402,76 @@ function temperature(steps)
 	end
 end
 
-function  closerOverObject( ... )
-	-- body
+function inputsToMatrix(inputs)
+	local matrix = {}
+	local currentRow = 1
+	local currentColumn = 1
+	matrix[currentRow] = {}
+	for i = 1, #inputs, 1 do
+
+		matrix[currentRow][currentColumn] = inputs[i]
+		currentColumn = currentColumn + 1
+
+		if i % ((VIEW_RADIUS*2)+1) == 0 and i ~= 1 then
+			currentRow = currentRow + 1
+			currentColumn = 1
+			matrix[currentRow] = {}
+		end
+	end
+	return matrix
+end
+
+
+function inFrontOfObsticle( state )
+	local m = inputsToMatrix( state )
+	local marioRow 
+	--if mario is airborn we have to actually read the row below him as his hitbox it appears shifts down in the air
+	if memory.readbyte(0x001D) == 0x0001 then
+		marioRow = m[VIEW_RADIUS+3]
+	else
+		marioRow = m[VIEW_RADIUS+2]
+	end
+	--there is a solid object in at most a two tile radius of mario and on his x axis
+	--return their is an obsticle in front
+	if marioRow[VIEW_RADIUS+2] == 1 then
+		return true
+	end
+	return false
+end
+
+function getColumn(matrix , columnNumber)
+	local column = {}
+	for i = 1, #matrix, 1 do
+		column[#column+1] = matrix[i][columnNumber]
+	end
+
+	return column
+end
+
+function  closerOverObject( prevState, newState )
+	if inFrontOfObsticle( newState ) == false then
+		return false 
+	end
+	local M1 = inputsToMatrix( prevState )
+	local M2 = inputsToMatrix( newState )
+
+	local M1Col = getColumn(M1,VIEW_RADIUS+2)
+	local M2Col = getColumn(M2,VIEW_RADIUS+2)
+	--console.log("prev")
+	--console.log(M1Col)
+	--console.log("New")
+	--console.log(M2Col)
+	for i = 1, #M1Col, 1 do 
+		--if we are on the ground we dont want to read row represnting the goround
+		--as this will result in a false positive simply from mario jumping
+		if memory.readbyte(0x001D) == 0 and i ==  (VIEW_RADIUS + 3) then
+			return false
+		end
+		if M1Col[i] == 1 and M2Col[i] == 0 then
+			return true
+		end
+	end
+	return false
 end
 
 function  exploitQNet()
@@ -1348,16 +1518,16 @@ function getReinformentValues( )
 	elseif fellInPit() then
 		return -0.5
 	--if the agent got further in the level reward
+	elseif closerOverObject(xState,yState) then
+		return 0.5
 	elseif PREV_PLAYER_X < PLAYER_X then
-		return 0.02
-	--elseif memory.readbyte(0x009F) >=252 then
-	--	return 0.2
+		return 0.2
 	end
 	--if the agents speed increased reward
 	--this is due the x value not being imediatly changed when 
 	--the left or right action is executed
 	--otherwise if the action was of no benifit penilise
-	return -0.01
+	return -0.1
 end
 
 function hitEnemy(  )
@@ -1393,109 +1563,6 @@ function resetTime( )
 	end
 end
 
-function StoreQLearningNetworkValues_XML(f)
-	local file = io.open(f,"w")
-	file:write('<?xml version="1.0" encoding="UTF-8"?>\n')
-	file:write('<Q-Learning_NETWORKS>\n')
-	for a = 1 , NUM_ACTIONS, 1 do
-		file:write('<ACTION_NET'..a..">\n")
-		file:write('<IL_HL_Weights>\n')
-		for i = LOW_I, HIGH_I, 1 do
-			file:write('<i'..i..'>')
-			for j = LOW_J, HIGH_J , 1 do
-				file:write(ACTION_NETWORKS["ACTION"..a].w[i][j].."|")
-			end
-				file:write('</i'..i..'>\n')
-		end
-		file:write('<iT>')
-		for j = LOW_J, HIGH_J, 1 do
-			file:write(ACTION_NETWORKS["ACTION"..a].wt[j].."|")
-		end
-		file:write('</iT>\n')
-		file:write('</IL_HL_Weights>\n')
-
-		file:write('<HL_OL_Weights>\n')
-		for j = LOW_J, HIGH_J, 1 do
-			file:write('<j'..j..'>')
-			for k = LOW_K, HIGH_K, 1 do
-				file:write(ACTION_NETWORKS["ACTION"..a].w[j][k].."|")
-			end
-				file:write('</j'..j..'>\n')
-		end
-		file:write('<jT>')
-		for k = LOW_K, HIGH_K, 1 do
-			file:write(ACTION_NETWORKS["ACTION"..a].wt[k].."|")
-		end
-		file:write('</jT>\n')
-		file:write('</HL_OL_Weights>\n')
-		file:write('</ACTION_NET'..a..">\n")
-	end
-	file:write('</Q-Learning_NETWORKS>\n')
-	file:close()
-end
-
-function parseXMLActionNetvalues(file,net,a)
-	console.log("Loading net values for: "..a)
-	local e
-	local x
-	local index 
-	local inBlock = false
-	for line in io.lines(file) do
-		if line:match("<ACTION_NET"..a..">") then 
-			inBlock = true
-		elseif line:match("</ACTION_NET"..a..">") then 
-			inBlock = false
-			return net
-		end
-		if inBlock then
-			--input to hiden layer values
-			if line:match("<i%d+>(.+)</i%d+>") then
-				index = tonumber(line:match("<i(%d+)>"))
-				line = line:match("<i%d+>(.+)</i%d+>")
-				e = split(line,"|")
-				x = 1
-				for j = LOW_J, HIGH_J ,1 do
-					net.w[index][j] = e[x]
-					x = x + 1
-				end
-
-			--input to hidden layer thresholds
-			elseif line:match("<iT>(.+)</iT>") then
-				line = line:match("<iT>(.+)</iT>")
-				e = split(line,"|")
-				x = 1
-				for j = LOW_J, HIGH_J, 1 do
-					net.wt[j] = e[x]
-					x = x +1
-				end
-
-			--hiden to output layer
-			elseif line:match("<j%d+>(.+)</j%d+>") then
-				index = tonumber(line:match("<j(%d+)>"))
-				line = line:match("<j%d+>(.+)</j%d+>")
-				e = split(line,"|")
-				x = 1
-				for k = LOW_K, HIGH_K, 1 do
-					net.w[index][k] = e[x]
-					x = x +1
-				end
-
-			--hidden to output layer thresholds
-			elseif line:match("<jT>(.+)</jT>") then
-				line = line:match("<jT>(.+)</jT>")
-				e = split(line,"|")
-				x = 1
-				for k = LOW_K, HIGH_K, 1 do
-					net.wt[k] = e[x]
-					x = x +1
-				end
-			end
-		end --end inblock
-	end
-	console.log("Finshed Loading net values for: "..a)
-	return net
-end
-
 
 loadConfig("../config.txt")
 
@@ -1512,6 +1579,14 @@ else
 	NETWORK = InitNetwork(NETWORK)
 end
 
+function printMatrix(m)
+	for y = 1, #m, 1 do
+		console.log(table.concat(m[y]))
+	end
+end
+
+--printMatrix(inputsToMatrix(getScreen(VIEW_RADIUS)))
+--onsole.log(getColumn(inputsToMatrix(getScreen(VIEW_RADIUS)) , VIEW_RADIUS+2))
 
 while true do
 	if SHOW_DATA == "ON" then
@@ -1534,6 +1609,5 @@ while true do
 	else
 		drawUI()
 	end
-	--drawPosData()
 	emu.frameadvance()
 end
