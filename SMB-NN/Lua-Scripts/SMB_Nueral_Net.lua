@@ -1,6 +1,6 @@
---local STATE_FILE = "C:/Users/eoinm_000/Documents/GitHub/fourth-year-project/SMB-NN/Save_States/SMB_L1-1_laptop.State" --laptop
+local STATE_FILE = "C:/Users/eoinm_000/Documents/GitHub/fourth-year-project/SMB-NN/Save_States/SMB_L1-1_laptop.State" --laptop
 
-local STATE_FILE = "C:/Users/Eoin/Documents/GitHub/fourth-year-project/SMB-NN/Save_States/SMB_L1-1.State" -- desktop
+--local STATE_FILE = "C:/Users/Eoin/Documents/GitHub/fourth-year-project/SMB-NN/Save_States/SMB_L1-1.State" -- desktop
 local TOGGLE_UI = "ON" 
 local RECORD_EXEMPLARS = "OFF"
 local EXPLOIT_NET = "OFF"
@@ -17,6 +17,7 @@ local PLAYER_X, PLAYER_Y
 local PREV_PLAYER_X,PREV_PLAYER_Y
 local PREV_EXEMPLAR
 local RUN_LOG = "../Run_Logs/NET-Run_"..os.date("%b-%d-%H-%M-%S")..".xml"
+local Q_LOG = "../Training_Logs/Q_Learn_"..os.date("%b-%d-%H-%M-%S")..".train"
 --local NET_VAL = "../Network_Values/NETVal_"..os.date("%b_%d_%H_%M_%S")..".dat"
 local NET_VAL_XML_Q = "../Network_Values/NETVal_Q-Learning_"..os.date("%b_%d_%H_%M_%S")..".xml"
 local NET_TYPE
@@ -518,7 +519,7 @@ function forwardPropigate(net)
 		x = 0
 		for i = LOW_I, HIGH_I, 1 do
 			x = x + ( net.I[i] * net.w[i][j] )
-			net.y[j] = bipolarSigmod( x - net.wt[j] , 2)
+			net.y[j] = sigmod( x - net.wt[j])
 		end
 	end
 	--hidden -> output
@@ -526,7 +527,7 @@ function forwardPropigate(net)
 		x = 0 
 		for j = LOW_J, HIGH_J , 1 do
 			x = x + ( net.y[j] * net.w[j][k] )
-			net.y[k] = bipolarSigmod( x - net.wt[k] ,2)
+			net.y[k] = sigmod( x - net.wt[k])
 		end
 	end
 	return net
@@ -1138,8 +1139,9 @@ function displayBoltzValues(qValues_Boltz)
 	gui.drawText(10,182,"P(x|U): "..qValues_Boltz[6].boltzD,0xFFFFFFFF,10,"Segoe UI")
 end
 function displayR( r )
-	gui.drawBox(10,120,130,140,0xFF000000,0xA0000000)
-	gui.drawText(10,122,"Reinforcment: "..r,0xFFFFFFFF,10,"Segoe UI")
+	--	150,30,250,70
+	gui.drawBox(150,10,250,28,0xFF000000,0xA0000000)
+	gui.drawText(150,12,"Reinforcment: "..r,0xFFFFFFFF,10,"Segoe UI")
 end
 
 function displayX(inputs)
@@ -1248,23 +1250,25 @@ function Q_Learn()
 
 		local qyb = highestQ(qValues)
 		yState = qyb.state
-		local r = getReinformentValues()
 
+		local r = getReinformentValues()
+		displayR(r)
 
 		local ok = r + (DISCOUNT_FACTOR * qyb.value)
-
-
 		local yk = qxa.value
 		yk = ((1-RATE) * yk) + (RATE * ok)
 		--yk = yk + RATE * (ok - yk)
-
---[[
+	
+	--[[
 		console.log("X = ")
 		console.log(qxa)
 		console.log("Y = ")
 		console.log(qyb)
 		console.log("R = "..r)
---]]
+		console.log("ok: "..ok)
+		console.log("yk:"..yk)
+	--]]
+		
 		--pass back the original state to the network we are updating
 		for i = LOW_I, HIGH_I, 1 do
 			ACTION_NETWORKS["ACTION"..qxa.action].I[i] = qxa.state[i]
@@ -1273,6 +1277,8 @@ function Q_Learn()
 		forwardPropigate(ACTION_NETWORKS["ACTION"..qxa.action])
 
 		backPropigate_QValue(yk, ok, ACTION_NETWORKS["ACTION"..qxa.action])
+
+		logQLearn(qxa, qyb, r, ok, yk)
 
 		-- if the resulting action cause mario to die we need to reload the game to the start 
 		--or else if we leave it the reulting jumps in memory could coruppt the net.
@@ -1283,10 +1289,29 @@ function Q_Learn()
 	StoreQLearningNetworkValues_XML( NET_VAL_XML_Q , ACTION_NETWORKS)
 end
 
+function logQLearn(qxa, qyb, r, ok, yk)
+	local file = io.open(Q_LOG,"a")
+	file:write("Q(x,a): \n")
+	file:write("action: "..qxa.action)
+	file:write(" , State: "..table.concat( qxa.state, ""))
+	file:write(" , value: "..qxa.value)
+	file:write(" , Boltz: "..qxa.boltzD)
+	file:write("\nQ(y,b): \n")
+	file:write("action: "..qyb.action)
+	file:write(" , State: "..table.concat( qyb.state, ""))
+	file:write(" , value: "..qyb.value)
+	file:write("\n\nReinforcment value for x,a: "..r)
+	file:write("\nok: "..ok)
+	file:write("\nyk: "..yk)
+	file:write("\nE = (ok-yk)^2 = "..math.pow(ok-yk,2))
+	file:write("\n---------------------------------------------\n")
+	file:close()
+end
+
 function backPropigate_QValue(yk,ok,net)
 	local dw
 
-	net.dy[HIGH_K] = ok - yk
+	net.dy[HIGH_K] = math.pow((ok - yk),2)
 	--totalError = totalError +  math.pow(dy[k],2) 
 	net.dx[HIGH_K] = ( net.dy[HIGH_K] ) * yk * (1-yk)
 
@@ -1474,6 +1499,67 @@ function  closerOverObject( prevState, newState )
 	return false
 end
 
+function enemyInRadius( state )
+	local m = inputsToMatrix(state)
+	local marioRow = m[VIEW_RADIUS+2]
+
+	if marioRow[VIEW_RADIUS+2] == -1 or marioRow[VIEW_RADIUS+3] == -1 
+		or marioRow[VIEW_RADIUS] == -1 or marioRow[VIEW_RADIUS-1] == -1 then
+		return true
+	else
+		return false
+	end
+end
+
+function  closerOverEnemy( prevState, newState )
+	if enemyInRadius(prevState) == false then
+		return false
+	end 
+
+	local M1 = inputsToMatrix( prevState )
+	local M2 = inputsToMatrix( newState )
+
+	--enemy to the right of mario
+	local M1ColR = getColumn(M1,VIEW_RADIUS+2)
+	local M2ColR = getColumn(M2,VIEW_RADIUS+2)
+
+	--enemy to the left of mario
+	local M1ColL = getColumn(M1,VIEW_RADIUS)
+	local M2ColL = getColumn(M2,VIEW_RADIUS)
+
+	--console.log("prev")
+	--printMatrix(M1)
+	--console.log("new")
+	--printMatrix(M2)
+
+	--check the right side of mario
+	for i = 1, #M1ColR, 1 do
+		if i == #M1ColR then 
+			if M1ColR[i] == -1 and M2ColR[i] == 0 then
+				return true
+			end
+			return false
+		end
+		if M1ColR[i] == -1 and M2ColR[i+1] == -1 then
+			return true
+		end
+	end
+
+	--check the left side of mario
+	for i = 1, #M1ColL, 1 do
+		if i == #M1ColL then 
+			if M1ColL[i] == -1 and M2ColL[i] == 0 then
+				return true
+			end
+			return false
+		end
+		if M1ColL[i] == -1 and M2ColL[i+1] == -1 then
+			return true
+		end
+	end
+	return false
+end
+
 function  exploitQNet()
 	drawData(false)
 	local inputs = getScreen(VIEW_RADIUS)
@@ -1517,17 +1603,20 @@ function getReinformentValues( )
 	--if the agent fell in a hole penelise
 	elseif fellInPit() then
 		return -0.5
-	--if the agent got further in the level reward
+	--reward the agent if it got closer over an obsticle in its path
 	elseif closerOverObject(xState,yState) then
 		return 0.5
-	elseif PREV_PLAYER_X < PLAYER_X then
-		return 0.2
+	--reward the agent if it got closer over an enemy in its path
+	elseif closerOverEnemy(xState,yState) then
+		return 0.5
+	--penilise the agent if it took an action that didnt lead to a new state
+	elseif table.concat( xState, "") == table.concat( yState, "") then
+		return -0.04
+	--elseif PREV_PLAYER_X < PLAYER_X then
+	--	return 0.2
 	end
-	--if the agents speed increased reward
-	--this is due the x value not being imediatly changed when 
-	--the left or right action is executed
 	--otherwise if the action was of no benifit penilise
-	return -0.1
+	return -0.02
 end
 
 function hitEnemy(  )
@@ -1586,7 +1675,7 @@ function printMatrix(m)
 end
 
 --printMatrix(inputsToMatrix(getScreen(VIEW_RADIUS)))
---onsole.log(getColumn(inputsToMatrix(getScreen(VIEW_RADIUS)) , VIEW_RADIUS+2))
+--console.log(getColumn(inputsToMatrix(getScreen(VIEW_RADIUS)) , VIEW_RADIUS+2))
 
 while true do
 	if SHOW_DATA == "ON" then
