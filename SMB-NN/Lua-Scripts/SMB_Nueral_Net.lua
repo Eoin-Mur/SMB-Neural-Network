@@ -1,6 +1,6 @@
-local STATE_FILE = "C:/Users/eoinm_000/Documents/GitHub/fourth-year-project/SMB-NN/Save_States/SMB_L1-1_laptop.State" --laptop
+--local STATE_FILE = "C:/Users/eoinm_000/Documents/GitHub/fourth-year-project/SMB-NN/Save_States/SMB_L1-1_laptop.State" --laptop
 
---local STATE_FILE = "C:/Users/Eoin/Documents/GitHub/fourth-year-project/SMB-NN/Save_States/SMB_L1-1.State" -- desktop
+local STATE_FILE = "C:/Users/Eoin/Documents/GitHub/fourth-year-project/SMB-NN/Save_States/SMB_L1-1.State" -- desktop
 local TOGGLE_UI = "ON" 
 local RECORD_EXEMPLARS = "OFF"
 local EXPLOIT_NET = "OFF"
@@ -18,6 +18,7 @@ local PREV_PLAYER_X,PREV_PLAYER_Y
 local PREV_EXEMPLAR
 local RUN_LOG = "../Run_Logs/NET-Run_"..os.date("%b-%d-%H-%M-%S")..".xml"
 local Q_LOG = "../Training_Logs/Q_Learn_"..os.date("%b-%d-%H-%M-%S")..".train"
+local Q_EXPERIENCE_LOG = "../Experiences/Q_Learn_"..os.date("%b-%d-%H-%M-%S")..".experiences"
 --local NET_VAL = "../Network_Values/NETVal_"..os.date("%b_%d_%H_%M_%S")..".dat"
 local NET_VAL_XML_Q = "../Network_Values/NETVal_Q-Learning_"..os.date("%b_%d_%H_%M_%S")..".xml"
 local NET_TYPE
@@ -45,7 +46,8 @@ local TRAIN_ITERATIONS --add to config
 
 local C --add to config
 local RATE --add to config
-local DISCOUNT_FACTOR = 1
+local DISCOUNT_FACTOR --added to config
+local SIGMOID_TYPE
 local maxQT = 1.0/2
 local minQT = 1.0/50
 local xState
@@ -519,7 +521,11 @@ function forwardPropigate(net)
 		x = 0
 		for i = LOW_I, HIGH_I, 1 do
 			x = x + ( net.I[i] * net.w[i][j] )
-			net.y[j] = sigmod( x - net.wt[j])
+			if SIGMOID_TYPE == "binary" then
+				net.y[j] = sigmod( x - net.wt[j])
+			else 
+				net.y[j] = bipolarSigmod( x - net.wt[j])
+			end
 		end
 	end
 	--hidden -> output
@@ -527,7 +533,11 @@ function forwardPropigate(net)
 		x = 0 
 		for j = LOW_J, HIGH_J , 1 do
 			x = x + ( net.y[j] * net.w[j][k] )
-			net.y[k] = sigmod( x - net.wt[k])
+			if SIGMOID_TYPE == "binary" then
+				net.y[k] = sigmod( x - net.wt[k])
+			else 
+				net.y[k] = bipolarSigmod( x - net.wt[k])
+			end
 		end
 	end
 	return net
@@ -938,6 +948,8 @@ function loadConfig(filename)
 	NUM_NUERONS = tonumber(config["NUM_NUERONS"])
 	C = tonumber(config["C"])
 	RATE = tonumber(config["RATE"])
+	DISCOUNT_FACTOR = tonumber(config["DISCOUNT_FACTOR"])
+	SIGMOID_TYPE = config["SIGMOID_TYPE"]
 	TRAIN_ITERATIONS = tonumber(config["TRAIN_ITERATIONS"])
 	NET_TYPE = config["NET_TYPE"];
 
@@ -1120,13 +1132,13 @@ StoreNetworkValues_XML( "../Network_Values/parseTestAfter2.xml" )
 --]]
 
 function displayQvalues(qValues)
-	gui.drawBox(10,60,122,130,0xFF000000,0xA0000000)
-	gui.drawText(10,62,"Q(x,A): "..qValues[1].value,0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(10,72,"Q(x,B): "..qValues[2].value,0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(10,82,"Q(x,D): "..qValues[3].value,0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(10,92,"Q(x,L): "..qValues[4].value,0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(10,102,"Q(x,R): "..qValues[5].value,0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(10,112,"Q(x,U): "..qValues[6].value,0xFFFFFFFF,10,"Segoe UI")
+	gui.drawBox(150,80,250,150,0xFF000000,0xA0000000)
+	gui.drawText(152,82,"Q(x,A): "..qValues[1].value,0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,92,"Q(x,B): "..qValues[2].value,0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,102,"Q(x,D): "..qValues[3].value,0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,112,"Q(x,L): "..qValues[4].value,0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,122,"Q(x,R): "..qValues[5].value,0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,132,"Q(x,U): "..qValues[6].value,0xFFFFFFFF,10,"Segoe UI")
 end
 
 function displayBoltzValues(qValues_Boltz)
@@ -1152,18 +1164,7 @@ function displayX(inputs)
 end
 
 function Q_Learn()
-	local keys = input.get()
 	for steps = 0, TRAIN_ITERATIONS, 1 do
-
-		if keys["NumberPad2"] == true then
-			NUM_PAD2 = true
-		end
-
-		if keys["NumberPad2"] == nil and NUM_PAD2 == true then
-			loadSaveState(STATE_FILE)
-			NUM_PAD2 = false
-		end
-
 		--drawData(false)
 		local inputs = getScreen(VIEW_RADIUS)
 		--first we pass the state through the net for each possible action and get all the qvalues
@@ -1186,6 +1187,7 @@ function Q_Learn()
 		end
 		local qValues_Boltz = calculateBolzmannDist(qValues, temperature(steps))
 		local qxa = chooseAction(qValues_Boltz)
+		--local qxa = highestQ(qValues_Boltz)
 		xState = qxa.state
 		displayQvalues(qValues)
 		--displayBoltzValues(qValues_Boltz)
@@ -1244,7 +1246,8 @@ function Q_Learn()
 			qValues[#qValues + 1] = 
 			{
 				value = ACTION_NETWORKS["ACTION"..a].y[HIGH_K],
-				state = inputs
+				state = inputs,
+				action = a
 			}
 		end
 
@@ -1252,7 +1255,7 @@ function Q_Learn()
 		yState = qyb.state
 
 		local r = getReinformentValues()
-		displayR(r)
+		--displayR(r)
 
 		local ok = r + (DISCOUNT_FACTOR * qyb.value)
 		local yk = qxa.value
@@ -1279,6 +1282,7 @@ function Q_Learn()
 		backPropigate_QValue(yk, ok, ACTION_NETWORKS["ACTION"..qxa.action])
 
 		logQLearn(qxa, qyb, r, ok, yk)
+		storeExperience(qxa.state, qxa.action, qyb.state, r)
 
 		-- if the resulting action cause mario to die we need to reload the game to the start 
 		--or else if we leave it the reulting jumps in memory could coruppt the net.
@@ -1289,6 +1293,20 @@ function Q_Learn()
 	StoreQLearningNetworkValues_XML( NET_VAL_XML_Q , ACTION_NETWORKS)
 end
 
+function storeExperience(x,a,y,r)
+	local file = io.open(Q_EXPERIENCE_LOG,"a")
+	file:write(
+		table.concat( x, "|")..
+		";"..a..
+		";"..table.concat( y, "|")..
+		";"..r.."\n"
+	)
+	file:close()
+end
+
+function replayExperiences(file)
+
+end
 function logQLearn(qxa, qyb, r, ok, yk)
 	local file = io.open(Q_LOG,"a")
 	file:write("Q(x,a): \n")
@@ -1304,6 +1322,13 @@ function logQLearn(qxa, qyb, r, ok, yk)
 	file:write("\nok: "..ok)
 	file:write("\nyk: "..yk)
 	file:write("\nE = (ok-yk)^2 = "..math.pow(ok-yk,2))
+	file:write("\nok - yk = "..ok - yk)
+	file:write("\nUpdated Qvalue for Q(x,a): ")
+	for i = LOW_I, HIGH_I, 1 do
+		ACTION_NETWORKS["ACTION"..qxa.action].I[i] = qxa.state[i]
+	end
+	forwardPropigate(ACTION_NETWORKS["ACTION"..qxa.action])
+	file:write(ACTION_NETWORKS["ACTION"..qxa.action].y[HIGH_K])
 	file:write("\n---------------------------------------------\n")
 	file:close()
 end
@@ -1311,7 +1336,8 @@ end
 function backPropigate_QValue(yk,ok,net)
 	local dw
 
-	net.dy[HIGH_K] = math.pow((ok - yk),2)
+	--net.dy[HIGH_K] = math.pow((ok - yk),2)
+	net.dy[HIGH_K] = (yk-ok)
 	--totalError = totalError +  math.pow(dy[k],2) 
 	net.dx[HIGH_K] = ( net.dy[HIGH_K] ) * yk * (1-yk)
 
@@ -1353,21 +1379,11 @@ function backPropigate_QValue(yk,ok,net)
 end
 
 function highestQ(qValues)
-	local q = {
-		value,
-		action,
-		state
-	}
+	local q = qValues[1]
 
-	for i = 1, #qValues, 1 do
-		if i == 1 then
-			q.value = qValues[i].value
-			q.action = i
-			q.state = qValues[i].state
-		elseif qValues[i].value > q.value then
-				q.value = qValues[i].value
-				q.action = i
-				q.state = qValues[i].state
+	for i = 2, #qValues, 1 do
+		if qValues[i].value > q.value then
+			q = qValues[i]
 		end
 	end	
 	return q
@@ -1599,21 +1615,21 @@ end
 function getReinformentValues( )
 	--if the agent was hit by a enemy penilise
 	if hitEnemy() then 
-		return -0.5
+		return -0.25
 	--if the agent fell in a hole penelise
 	elseif fellInPit() then
-		return -0.5
+		return -0.25
 	--reward the agent if it got closer over an obsticle in its path
 	elseif closerOverObject(xState,yState) then
-		return 0.5
+		return 0.50
 	--reward the agent if it got closer over an enemy in its path
 	elseif closerOverEnemy(xState,yState) then
-		return 0.5
+		return 0.50
 	--penilise the agent if it took an action that didnt lead to a new state
 	elseif table.concat( xState, "") == table.concat( yState, "") then
 		return -0.04
-	--elseif PREV_PLAYER_X < PLAYER_X then
-	--	return 0.2
+	elseif PREV_PLAYER_X < PLAYER_X then
+		return 0.1
 	end
 	--otherwise if the action was of no benifit penilise
 	return -0.02
