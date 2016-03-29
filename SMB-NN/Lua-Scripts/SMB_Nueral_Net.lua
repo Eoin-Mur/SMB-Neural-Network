@@ -14,7 +14,9 @@ local RECORD_F --add to config
 local ELAPSED_F = 0
 local VIEW_RADIUS --add to config
 local PLAYER_X, PLAYER_Y
-local PREV_PLAYER_X,PREV_PLAYER_Y
+local PREV_PLAYER_X ,PREV_PLAYER_Y
+local MARIO_STATE = 0x0000 
+local PREV_MARIO_STATE = 0x0000
 local PREV_EXEMPLAR
 local RUN_LOG = "../Run_Logs/NET-Run_"..os.date("%b-%d-%H-%M-%S")..".xml"
 local Q_LOG = "../Training_Logs/Q_Learn_"..os.date("%b-%d-%H-%M-%S")..".train"
@@ -137,6 +139,11 @@ function readNumpad()
 			end
 		else
 			parseXMLNetvalues(NET_VALUES_FILE,NETWORK)
+		end
+		for i = 1, 120, 1 do
+			gui.drawBox(50,160,180,180,0xFF000000,0xE1000000)
+			gui.drawText(52,162,"Loaded Network Values!",0xFFFF0000,10,"Segoe UI")
+			emu.frameadvance()
 		end
 		NUM_PAD4 = false
 	end
@@ -877,7 +884,7 @@ end
 function drawData(drawPos)
 	printScreen(getScreen(VIEW_RADIUS))
 
-	drawHitBoxes()
+	--drawHitBoxes()
 	drawController()
 	if drawPos == true then
 		drawPosData()
@@ -1000,28 +1007,28 @@ function settingsUI()
 	local inputs = input.get()
 	gui.drawBox(10,10,240, 240,0xFF000000,0xE1000000)
 	--gui.drawText(12,20,"TRAINING_FILE: ",highlight(1,curSel),10,"Segoe UI")
-	gui.drawText(12,40,"NET_TYPE: ",highlight(1,curSel),10,"Segoe UI")
-	gui.drawText(12,60,"RECORD_F: ",highlight(2,curSel),10,"Segoe UI")
-	gui.drawText(12,80,"VIEW_RADIUS: ",highlight(3,curSel),10,"Segoe UI")
-	gui.drawText(12,100,"NUM_NUERONS: ",highlight(4,curSel),10,"Segoe UI")
-	gui.drawText(12,120,"C: ",highlight(5,curSel),10,"Segoe UI")
-	gui.drawText(12,140,"RATE: ",highlight(6,curSel),10,"Segoe UI")
-	gui.drawText(12,160,"TRAIN_ITERATIONS: ",highlight(7,curSel),10,"Segoe UI")
-	gui.drawText(12,180,"NET_VALUES_FILE:",highlight(8,curSel),10,"Segoe UI")
+	gui.drawText(12,12,"NET_TYPE: ",highlight(1,curSel),10,"Segoe UI")
+	gui.drawText(12,32,"RECORD_F: ",highlight(2,curSel),10,"Segoe UI")
+	gui.drawText(12,52,"VIEW_RADIUS: ",highlight(3,curSel),10,"Segoe UI")
+	gui.drawText(12,72,"NUM_NUERONS: ",highlight(4,curSel),10,"Segoe UI")
+	gui.drawText(12,92,"C: ",highlight(5,curSel),10,"Segoe UI")
+	gui.drawText(12,112,"RATE: ",highlight(6,curSel),10,"Segoe UI")
+	gui.drawText(12,132,"TRAIN_ITERATIONS: ",highlight(7,curSel),10,"Segoe UI")
+	gui.drawText(12,152,"NET_VALUES_FILE:",highlight(8,curSel),10,"Segoe UI")
 
 	--gui.drawText(24,40,TRAINING_FILE,0xFFFFFF00,10,"Segoe UI")
-	gui.drawText(120,40,NET_TYPE,0xFFFFFF00,10,"Segoe UI")
-	gui.drawText(120,60,RECORD_F,0xFFFFFF00,10,"Segoe UI")
-	gui.drawText(120,80,VIEW_RADIUS,0xFFFFFF00,10,"Segoe UI")
-	gui.drawText(120,100,NUM_NUERONS,0xFFFFFF00,10,"Segoe UI")
-	gui.drawText(120,120,C,0xFFFFFF00,10,"Segoe UI")
-	gui.drawText(120,140,RATE,0xFFFFFF00,10,"Segoe UI")
-	gui.drawText(120,160,TRAIN_ITERATIONS,0xFFFFFF00,10,"Segoe UI")
-	gui.drawText(24,200,NET_VALUES_FILE,0xFFFFFF00,10,"Segoe UI")
+	gui.drawText(120,12,NET_TYPE,0xFFFFFF00,10,"Segoe UI")
+	gui.drawText(120,32,RECORD_F,0xFFFFFF00,10,"Segoe UI")
+	gui.drawText(120,52,VIEW_RADIUS,0xFFFFFF00,10,"Segoe UI")
+	gui.drawText(120,72,NUM_NUERONS,0xFFFFFF00,10,"Segoe UI")
+	gui.drawText(120,92,C,0xFFFFFF00,10,"Segoe UI")
+	gui.drawText(120,112,RATE,0xFFFFFF00,10,"Segoe UI")
+	gui.drawText(120,132,TRAIN_ITERATIONS,0xFFFFFF00,10,"Segoe UI")
+	gui.drawText(24,172,NET_VALUES_FILE,0xFFFFFF00,10,"Segoe UI")
 	--gui.drawText(12,200,"Navigate: Up/Down",0xFFFFFFFF,10,"Segoe UI")
 	--gui.drawText(110,200,"Edit: Enter",0xFFFFFFFF,10,"Segoe UI")
-	gui.drawText(160,220,"Exit: Escape",0xFFFFFFFF,10,"Segoe UI")
-
+	gui.drawText(160,200,"Exit: Escape",0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(30,200,"Reload: NUM1",0xFFFFFFFF,10,"Segoe UI")
 	--not sure if iam going to allow users to edit from bizhawk
 	--unless i can find a way to disable the bizhawk hot keys while in a read keyboard function
 
@@ -1034,6 +1041,29 @@ function settingsUI()
 		TOGGLE_UI = toggleOption(TOGGLE_UI)
 		SETTINGS = toggleOption(SETTINGS)
 		ESCAPE = false
+	end
+
+	if inputs["NumberPad1"] == true then
+		NUM_PAD1 = true
+	end
+
+	if inputs["NumberPad1"] == nil and NUM_PAD1 == true then
+		loadConfig("../config.txt")
+		console.log("blah")
+		if NET_TYPE == "Reinforcment" then
+			
+			ACTION_NETWORKS.ACTION1 = InitNetwork(ACTION_NETWORKS.ACTION1 )
+			ACTION_NETWORKS.ACTION2 = InitNetwork(ACTION_NETWORKS.ACTION2 )
+			ACTION_NETWORKS.ACTION3 = InitNetwork(ACTION_NETWORKS.ACTION3 )
+			ACTION_NETWORKS.ACTION4 = InitNetwork(ACTION_NETWORKS.ACTION4 )
+			ACTION_NETWORKS.ACTION5 = InitNetwork(ACTION_NETWORKS.ACTION5 )
+			ACTION_NETWORKS.ACTION6 = InitNetwork(ACTION_NETWORKS.ACTION6 )
+				
+		else
+			NETWORK = InitNetwork(NETWORK)
+		end
+
+		NUM_PAD1 = false
 	end
 
 --[[
@@ -1181,7 +1211,8 @@ function Q_Learn()
 			qValues[#qValues + 1] = 
 			{
 				value = ACTION_NETWORKS["ACTION"..a].y[HIGH_K],
-				state =  inputs
+				state = inputs,
+				action = a
 			}
 
 		end
@@ -1189,9 +1220,12 @@ function Q_Learn()
 		local qxa = chooseAction(qValues_Boltz)
 		--local qxa = highestQ(qValues_Boltz)
 		xState = qxa.state
+		PREV_MARIO_STATE = memory.readbyte(0x001D)
+
 		displayQvalues(qValues)
 		--displayBoltzValues(qValues_Boltz)
 		drawData(false)
+
 		--now set the controler for each according to the action taken
 		local buttons = {}
 		for a = 1, #ButtonNames, 1 do
@@ -1216,8 +1250,11 @@ function Q_Learn()
 			PREV_PLAYER_Y = PLAYER_Y
 			emu.frameadvance()
 			resetTime( )
+			MARIO_STATE = memory.readbyte(0x001D)
 			elapsedFrames = elapsedFrames + 1
 		end
+
+		resetJumpOnAirToGround(buttons)
 
 		--get our reincforment values for the new state.
 		--reward if mario progressed further into the level(PLAYER_X increases) NOTE:may need to alter this
@@ -1293,6 +1330,15 @@ function Q_Learn()
 	StoreQLearningNetworkValues_XML( NET_VAL_XML_Q , ACTION_NETWORKS)
 end
 
+function resetJumpOnAirToGround(buttons)
+	if PREV_MARIO_STATE >= 0x0001 and MARIO_STATE == 0x0000 and buttons["P1 A"] == true then
+		buttons["P1 A"] = false
+		joypad.set(buttons)
+		emu.frameadvance()
+		buttons["P1 A"] = true
+	end
+end
+
 function storeExperience(x,a,y,r)
 	local file = io.open(Q_EXPERIENCE_LOG,"a")
 	file:write(
@@ -1307,6 +1353,7 @@ end
 function replayExperiences(file)
 
 end
+
 function logQLearn(qxa, qyb, r, ok, yk)
 	local file = io.open(Q_LOG,"a")
 	file:write("Q(x,a): \n")
@@ -1505,10 +1552,10 @@ function  closerOverObject( prevState, newState )
 	for i = 1, #M1Col, 1 do 
 		--if we are on the ground we dont want to read row represnting the goround
 		--as this will result in a false positive simply from mario jumping
-		if memory.readbyte(0x001D) == 0 and i ==  (VIEW_RADIUS + 3) then
+		if memory.readbyte(0x001D) == 0 and i == (VIEW_RADIUS + 3) then
 			return false
 		end
-		if M1Col[i] == 1 and M2Col[i] == 0 then
+		if M1Col[i] == 1 and M2Col[i] == 0 and joypad.get()["P1 A"] == true then
 			return true
 		end
 	end
@@ -1594,7 +1641,12 @@ function  exploitQNet()
 		--pass the inputs through the net
 		forwardPropigate(ACTION_NETWORKS["ACTION"..a])
 		--add the outputed qvalues to out list of qvalues
-		qValues[#qValues + 1] = ACTION_NETWORKS["ACTION"..a].y[HIGH_K]
+		qValues[#qValues + 1] = 
+			{
+				value = ACTION_NETWORKS["ACTION"..a].y[HIGH_K],
+				state = inputs,
+				action = a
+			}
 	end
 
 	local qxa = highestQ(qValues)
@@ -1615,10 +1667,10 @@ end
 function getReinformentValues( )
 	--if the agent was hit by a enemy penilise
 	if hitEnemy() then 
-		return -0.25
+		return -0.50
 	--if the agent fell in a hole penelise
 	elseif fellInPit() then
-		return -0.25
+		return -0.50
 	--reward the agent if it got closer over an obsticle in its path
 	elseif closerOverObject(xState,yState) then
 		return 0.50
@@ -1704,8 +1756,9 @@ while true do
 		if NET_TYPE == "Reinforcment" then
 			exploitQNet()
 		else
-			resetIfStuck(10,4)
-			joypad.set(exploit(NETWORK))
+			buttons = exploit(NETWORK)
+			resetJumpOnAirToGround(buttons)
+			joypad.set(buttons)
 			readNumpad()
 			--if isPlayerDead() then
 			--	loadSaveState(STATE_FILE)
@@ -1714,5 +1767,7 @@ while true do
 	else
 		drawUI()
 	end
+	PREV_MARIO_STATE = MARIO_STATE
 	emu.frameadvance()
+	MARIO_STATE = memory.readbyte(0x001D)
 end
