@@ -31,7 +31,7 @@ local MAX_RADIUS = 7
 --Network variables---
 
 local NUM_INPUTS
-local NUM_ACTIONS = 6  
+local NUM_ACTIONS = 8 
 local NUM_NUERONS --add to config
 local NUM_OUTPUTS = 6
 
@@ -72,20 +72,15 @@ local ACTION_NETWORKS = {
 	ACTION3,
 	ACTION4,
 	ACTION5,
-	ACTION6
+	ACTION6,
+	ACTION7, 	--actions left and jump at the same time
+	ACTION8 	--actions right and jump at the same time
 }
 
-local I = {}
-local y = {}
-local O = {}
-local w = {}
-local wt = {}
-
-local dx = {}
-local dy = {}
+local EXPERIENCES = {}
+local EXPERIENCE_REPLAY --added to config
 
 --Array for control buttons used in setting from net out put---
-
 ButtonNames = {
   "A",
   "B",
@@ -133,7 +128,7 @@ function readNumpad()
 	end
 
 	if inputs["NumberPad4"] == nil and NUM_PAD4 == true then
-		if NET_TYPE == "Reinforcment" then
+		if NET_TYPE == "ReinforcmentMul" then
 			for a = 1, NUM_ACTIONS, 1 do
 				parseXMLActionNetvalues(NET_VALUES_FILE,ACTION_NETWORKS["ACTION"..a],a)
 			end
@@ -186,8 +181,12 @@ function readNumpad()
 	end
 
 	if inputs["NumberPad6"] == nil and NUM_PAD6 == true then
-		loadSaveState(STATE_FILE)
-		Q_Learn()
+		--loadSaveState(STATE_FILE)
+		if NET_TYPE == "Reinforcment" then
+			Q_Learn()
+		elseif NET_TYPE == "ReinforcmentMul" then
+			Q_Learn_ActionNets()
+		end
 		NUM_PAD6 = false
 	end
 
@@ -959,31 +958,46 @@ function loadConfig(filename)
 	SIGMOID_TYPE = config["SIGMOID_TYPE"]
 	TRAIN_ITERATIONS = tonumber(config["TRAIN_ITERATIONS"])
 	NET_TYPE = config["NET_TYPE"];
-
+	EXPERIENCE_REPLAY = tonumber(config["EXPERIENCE_REPLAY"])
 	loadNetConfig()
 
 end
 
 function loadNetConfig()
-	if NET_TYPE == "Reinforcment" then
+	if NET_TYPE == "ReinforcmentMul" then
 		ACTION_NETWORKS.ACTION1 = {I = {},y = {},O = {},w = {},wt = {},dx = {},dy = {}}
 		ACTION_NETWORKS.ACTION2 = {I = {},y = {},O = {},w = {},wt = {},dx = {},dy = {}}
 		ACTION_NETWORKS.ACTION3 = {I = {},y = {},O = {},w = {},wt = {},dx = {},dy = {}}
 		ACTION_NETWORKS.ACTION4 = {I = {},y = {},O = {},w = {},wt = {},dx = {},dy = {}}
 		ACTION_NETWORKS.ACTION5 = {I = {},y = {},O = {},w = {},wt = {},dx = {},dy = {}}
 		ACTION_NETWORKS.ACTION6 = {I = {},y = {},O = {},w = {},wt = {},dx = {},dy = {}}
+		ACTION_NETWORKS.ACTION7 = {I = {},y = {},O = {},w = {},wt = {},dx = {},dy = {}}
+		ACTION_NETWORKS.ACTION8 = {I = {},y = {},O = {},w = {},wt = {},dx = {},dy = {}}
 		NUM_OUTPUTS = 1
-	end	
-	NUM_INPUTS = (VIEW_RADIUS * 2 + 1) * (VIEW_RADIUS * 2 + 1)  
+	end
+	if NET_TYPE == "Reinforcment" then 
+		NUM_INPUTS = ( (VIEW_RADIUS * 2 + 1) * (VIEW_RADIUS * 2 + 1)  ) + NUM_ACTIONS
+		NUM_OUTPUTS = 1
+		NET_TOTAL = NUM_INPUTS + NUM_NUERONS + NUM_OUTPUTS
+	 
+		LOW_I = 1
+		HIGH_I = NUM_INPUTS 
+		LOW_J = NUM_INPUTS + 1
+		HIGH_J = NUM_INPUTS + NUM_NUERONS
+		LOW_K = NUM_INPUTS + NUM_NUERONS + 1
+		HIGH_K = NUM_INPUTS + NUM_NUERONS + NUM_OUTPUTS
+	else 
+		NUM_INPUTS = (VIEW_RADIUS * 2 + 1) * (VIEW_RADIUS * 2 + 1)  
 
-	NET_TOTAL = NUM_INPUTS + NUM_NUERONS + NUM_OUTPUTS
- 
-	LOW_I = 1
-	HIGH_I = NUM_INPUTS 
-	LOW_J = NUM_INPUTS + 1
-	HIGH_J = NUM_INPUTS + NUM_NUERONS
-	LOW_K = NUM_INPUTS + NUM_NUERONS + 1
-	HIGH_K = NUM_INPUTS + NUM_NUERONS + NUM_OUTPUTS
+		NET_TOTAL = NUM_INPUTS + NUM_NUERONS + NUM_OUTPUTS
+	 
+		LOW_I = 1
+		HIGH_I = NUM_INPUTS 
+		LOW_J = NUM_INPUTS + 1
+		HIGH_J = NUM_INPUTS + NUM_NUERONS
+		LOW_K = NUM_INPUTS + NUM_NUERONS + 1
+		HIGH_K = NUM_INPUTS + NUM_NUERONS + NUM_OUTPUTS
+	end
 
 end
 
@@ -1050,7 +1064,7 @@ function settingsUI()
 	if inputs["NumberPad1"] == nil and NUM_PAD1 == true then
 		loadConfig("../config.txt")
 		console.log("blah")
-		if NET_TYPE == "Reinforcment" then
+		if NET_TYPE == "ReinforcmentMul" then
 			
 			ACTION_NETWORKS.ACTION1 = InitNetwork(ACTION_NETWORKS.ACTION1 )
 			ACTION_NETWORKS.ACTION2 = InitNetwork(ACTION_NETWORKS.ACTION2 )
@@ -1058,6 +1072,8 @@ function settingsUI()
 			ACTION_NETWORKS.ACTION4 = InitNetwork(ACTION_NETWORKS.ACTION4 )
 			ACTION_NETWORKS.ACTION5 = InitNetwork(ACTION_NETWORKS.ACTION5 )
 			ACTION_NETWORKS.ACTION6 = InitNetwork(ACTION_NETWORKS.ACTION6 )
+			ACTION_NETWORKS.ACTION7 = InitNetwork(ACTION_NETWORKS.ACTION7 )
+			ACTION_NETWORKS.ACTION8 = InitNetwork(ACTION_NETWORKS.ACTION8 )
 				
 		else
 			NETWORK = InitNetwork(NETWORK)
@@ -1162,13 +1178,15 @@ StoreNetworkValues_XML( "../Network_Values/parseTestAfter2.xml" )
 --]]
 
 function displayQvalues(qValues)
-	gui.drawBox(150,80,250,150,0xFF000000,0xA0000000)
+	gui.drawBox(150,80,250,170,0xFF000000,0xA0000000)
 	gui.drawText(152,82,"Q(x,A): "..qValues[1].value,0xFFFFFFFF,10,"Segoe UI")
 	gui.drawText(152,92,"Q(x,B): "..qValues[2].value,0xFFFFFFFF,10,"Segoe UI")
 	gui.drawText(152,102,"Q(x,D): "..qValues[3].value,0xFFFFFFFF,10,"Segoe UI")
 	gui.drawText(152,112,"Q(x,L): "..qValues[4].value,0xFFFFFFFF,10,"Segoe UI")
 	gui.drawText(152,122,"Q(x,R): "..qValues[5].value,0xFFFFFFFF,10,"Segoe UI")
 	gui.drawText(152,132,"Q(x,U): "..qValues[6].value,0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,142,"Q(x,L A): "..qValues[7].value,0xFFFFFFFF,10,"Segoe UI")
+	gui.drawText(152,152,"Q(x,R A): "..qValues[8].value,0xFFFFFFFF,10,"Segoe UI")
 end
 
 function displayBoltzValues(qValues_Boltz)
@@ -1193,7 +1211,125 @@ function displayX(inputs)
 	end
 end
 
-function Q_Learn()
+--qlearning algorithm with actions passed as inputs to the network
+function Q_Learn( )
+	loadSaveState(STATE_FILE)
+	for steps = 0, TRAIN_ITERATIONS, 1 do
+		local inputs = getScreen(VIEW_RADIUS)
+		local qValues = {}
+		for a = 1, NUM_ACTIONS, 1 do
+			local x = 1 
+			for i = LOW_I, HIGH_I - NUM_ACTIONS, 1 do
+				NETWORK.I[i] = inputs[x]
+				x = x + 1
+			end
+			for ia = 1, NUM_ACTIONS, 1 do
+				if ia == a then 
+					NETWORK.I[(HIGH_I - NUM_ACTIONS)+ia] = 1
+				else
+					NETWORK.I[(HIGH_I - NUM_ACTIONS)+ia] = 0
+				end 
+ 			end
+			forwardPropigate(NETWORK)
+			qValues[#qValues + 1] = 
+			{
+				value = NETWORK.y[HIGH_K],
+				state = inputs,
+				action = a
+			}
+		end
+
+		local qValues_Boltz = calculateBolzmannDist(qValues, temperature(steps))
+		local qxa = chooseAction(qValues_Boltz)
+		xState = qxa.state
+		PREV_MARIO_STATE = memory.readbyte(0x001D)
+
+		displayQvalues(qValues)
+		drawData(false)
+
+		local buttons = {}
+		for a = 1, #ButtonNames, 1 do
+			if a == qxa.action then
+				buttons["P1 "..ButtonNames[a]] = true
+			else
+				buttons["P1 "..ButtonNames[a]] = false
+			end
+		end
+		local elapsedFrames = 0
+		while table.concat(xState,"") == table.concat(getScreen(VIEW_RADIUS), "") do
+			if elapsedFrames > 180 then -- if after 100 frames mario hasnt reached a new state then break to allow for a new action to be tried
+				break
+			end
+			displayQvalues(qValues)
+			drawData(false)
+			joypad.set( buttons )
+			PREV_PLAYER_X = PLAYER_X
+			PREV_PLAYER_Y = PLAYER_Y
+			emu.frameadvance()
+			resetTime( )
+			MARIO_STATE = memory.readbyte(0x001D)
+			elapsedFrames = elapsedFrames + 1
+		end
+
+		resetJumpOnAirToGround(buttons)
+
+		--get next state
+		inputs = getScreen(VIEW_RADIUS)
+		qValues = {}
+		for a = 1, NUM_ACTIONS, 1 do
+			local x = 1 
+			for i = LOW_I, HIGH_I - NUM_ACTIONS, 1 do
+				NETWORK.I[i] = inputs[x]
+				x = x + 1
+			end
+			for ia = 1, NUM_ACTIONS, 1 do
+				if ia == a then 
+					NETWORK.I[(HIGH_I - NUM_ACTIONS)+ia] = 1
+				else
+					NETWORK.I[(HIGH_I - NUM_ACTIONS)+ia] = 0
+				end 
+ 			end
+			forwardPropigate(NETWORK)
+			qValues[#qValues + 1] = 
+			{
+				value = NETWORK.y[HIGH_K],
+				state = inputs,
+				action = a
+			}
+		end
+
+		local qyb = highestQ(qValues)
+		yState = qyb.state
+
+		local r = getReinformentValues()
+		local ok = r + (DISCOUNT_FACTOR * qyb.value)
+		local yk = qxa.value
+		yk = ((1-RATE) * yk) + (RATE * ok)
+		for i = LOW_I, HIGH_I, 1 do
+			NETWORK.I[i] = qxa.state[i]
+		end
+		for ia = 1, NUM_ACTIONS, 1 do
+			if ia == qxa.action then 
+				NETWORK.I[(HIGH_I - NUM_ACTIONS)+ia] = 1
+			else
+				NETWORK.I[(HIGH_I - NUM_ACTIONS)+ia] = 0
+			end 
+		end
+		forwardPropigate(NETWORK)
+		backPropigate_QValue(yk, ok, NETWORK)
+
+		logQLearn(qxa, qyb, r, ok, yk)
+		storeExperience(qxa.state, qxa.action, qyb.state, r)
+		if hitEnemy() or fellInPit() then
+			loadSaveState(STATE_FILE)
+		end
+	end
+	StoreQLearningNetworkValues_XML( NET_VAL_XML_Q , ACTION_NETWORKS)
+end
+
+function Q_Learn_ActionNets()
+	loadSaveState(STATE_FILE)
+	EXPERIENCES = {}
 	for steps = 0, TRAIN_ITERATIONS, 1 do
 		--drawData(false)
 		local inputs = getScreen(VIEW_RADIUS)
@@ -1234,6 +1370,13 @@ function Q_Learn()
 			else
 				buttons["P1 "..ButtonNames[a]] = false
 			end
+		end
+		if qxa.action == 7 then
+			buttons["P1 Left"] = true
+			buttons["P1 A"] = true
+		elseif qxa.action == 8 then
+			buttons["P1 Right"] = true
+			buttons["P1 A"] = true
 		end
 		--console.log( buttons )
 		--execute controler button press and move to next frame/state
@@ -1327,6 +1470,7 @@ function Q_Learn()
 			loadSaveState(STATE_FILE)
 		end
 	end
+	replayExperiences()
 	StoreQLearningNetworkValues_XML( NET_VAL_XML_Q , ACTION_NETWORKS)
 end
 
@@ -1340,6 +1484,14 @@ function resetJumpOnAirToGround(buttons)
 end
 
 function storeExperience(x,a,y,r)
+	EXPERIENCES[#EXPERIENCES+1] = 
+	{
+		StateX = x,
+		action = a,
+		StateY = y,
+		Reward = r
+	}
+
 	local file = io.open(Q_EXPERIENCE_LOG,"a")
 	file:write(
 		table.concat( x, "|")..
@@ -1350,8 +1502,44 @@ function storeExperience(x,a,y,r)
 	file:close()
 end
 
-function replayExperiences(file)
+function replayExperiences()
+	for replay = 1, EXPERIENCE_REPLAY, 1 do
+		for e = #EXPERIENCES, 1, -1 do
+			for i = LOW_I, HIGH_I, 1 do
+				ACTION_NETWORKS["ACTION"..EXPERIENCES[e].action].I[i] = EXPERIENCES[e].StateX[i]
+			end
+			forwardPropigate(ACTION_NETWORKS["ACTION"..EXPERIENCES[e].action])
+			qxa = { 
+				value = ACTION_NETWORKS["ACTION"..EXPERIENCES[e].action].y[HIGH_K],
+				state = EXPERIENCES[e].StateX,
+				action = EXPERIENCES[e].action
+			}
+			for a = 1, NUM_ACTIONS, 1 do
+					for i = LOW_I, HIGH_I, 1 do
+						ACTION_NETWORKS["ACTION"..EXPERIENCES[e].action].I[i] = EXPERIENCES[e].StateY[i]
+					end
+					forwardPropigate(ACTION_NETWORKS["ACTION"..EXPERIENCES[e].action])
+					qValues[#qValues + 1] = 
+					{
+						value = ACTION_NETWORKS["ACTION"..EXPERIENCES[e].action].y[HIGH_K],
+						state = inputs,
+						action = a
+					}
+			end
+			local qyb = highestQ(qValues)
+			local ok = EXPERIENCES[e].reward + (DISCOUNT_FACTOR * qyb.value)
+			local yk = qxa.value
+			yk = ((1-RATE) * yk) + (RATE * ok)
 
+			for i = LOW_I, HIGH_I, 1 do
+				ACTION_NETWORKS["ACTION"..EXPERIENCES[e].action].I[i] = EXPERIENCES[e].StateX[i]
+			end
+			forwardPropigate(ACTION_NETWORKS["ACTION"..EXPERIENCES[e].action])
+			backPropigate_QValue(yk, ok, ACTION_NETWORKS["ACTION"..EXPERIENCES[e].action])
+			
+			emu.frameadvance()--stop bizhawk from crashing when a frame isnt loaded after a while
+		end
+	end--end replay loop
 end
 
 function logQLearn(qxa, qyb, r, ok, yk)
@@ -1371,11 +1559,26 @@ function logQLearn(qxa, qyb, r, ok, yk)
 	file:write("\nE = (ok-yk)^2 = "..math.pow(ok-yk,2))
 	file:write("\nok - yk = "..ok - yk)
 	file:write("\nUpdated Qvalue for Q(x,a): ")
-	for i = LOW_I, HIGH_I, 1 do
-		ACTION_NETWORKS["ACTION"..qxa.action].I[i] = qxa.state[i]
+	if NET_TYPE == "ReinforcmentMul" then
+		for i = LOW_I, HIGH_I, 1 do
+			ACTION_NETWORKS["ACTION"..qxa.action].I[i] = qxa.state[i]
+		end
+		forwardPropigate(ACTION_NETWORKS["ACTION"..qxa.action])
+		file:write(ACTION_NETWORKS["ACTION"..qxa.action].y[HIGH_K])
+	else
+		for i = LOW_I, HIGH_I, 1 do
+			NETWORK.I[i] = qxa.state[i]
+		end
+		for a = 1, NUM_ACTIONS, 1 do
+			if a == qxa.action then
+				NETWORK.I[(HIGH_I - NUM_ACTIONS)+a ] = 1
+			else
+				NETWORK.I[(HIGH_I - NUM_ACTIONS)+a ] = 1
+			end
+		end
+		forwardPropigate(NETWORK)
+		file:write(NETWORK.y[HIGH_K])
 	end
-	forwardPropigate(ACTION_NETWORKS["ACTION"..qxa.action])
-	file:write(ACTION_NETWORKS["ACTION"..qxa.action].y[HIGH_K])
 	file:write("\n---------------------------------------------\n")
 	file:close()
 end
@@ -1455,8 +1658,8 @@ function chooseAction( QA )
 	while sum < x do
 		i = i+1
 		sum = sum + QA[i].boltzD;
-		if i == 6 and sum < x then
-			return QA[6]
+		if i == NUM_ACTIONS and sum < x then
+			return QA[NUM_ACTIONS]
 		end
 	end
 	return QA[i]
@@ -1723,7 +1926,7 @@ end
 
 loadConfig("../config.txt")
 
-if NET_TYPE == "Reinforcment" then
+if NET_TYPE == "ReinforcmentMul" then
 	
 	ACTION_NETWORKS.ACTION1 = InitNetwork(ACTION_NETWORKS.ACTION1 )
 	ACTION_NETWORKS.ACTION2 = InitNetwork(ACTION_NETWORKS.ACTION2 )
@@ -1731,6 +1934,8 @@ if NET_TYPE == "Reinforcment" then
 	ACTION_NETWORKS.ACTION4 = InitNetwork(ACTION_NETWORKS.ACTION4 )
 	ACTION_NETWORKS.ACTION5 = InitNetwork(ACTION_NETWORKS.ACTION5 )
 	ACTION_NETWORKS.ACTION6 = InitNetwork(ACTION_NETWORKS.ACTION6 )
+	ACTION_NETWORKS.ACTION7 = InitNetwork(ACTION_NETWORKS.ACTION7 )
+	ACTION_NETWORKS.ACTION8 = InitNetwork(ACTION_NETWORKS.ACTION8 )
 		
 else
 	NETWORK = InitNetwork(NETWORK)
@@ -1753,7 +1958,7 @@ while true do
 		recordExemplars()
 	elseif EXPLOIT_NET == "ON" then
 		--check if the user hits 5 again to end the net execute.
-		if NET_TYPE == "Reinforcment" then
+		if NET_TYPE == "ReinforcmentMul" then
 			exploitQNet()
 		else
 			buttons = exploit(NETWORK)
