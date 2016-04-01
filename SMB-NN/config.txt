@@ -32,7 +32,7 @@ SIGMOID_TYPE binary
 TRAIN_ITERATIONS 5000
 
 # xml file with the trained network values
-NET_VALUES_FILE ../Network_Values/SuperviesedNetwork_Used_in_Video.xml
+NET_VALUES_FILE ../Network_Values/NETVal_Q-Learning_Apr_01_18_05_35.xml
 
 # Network types:
 # Supervised
@@ -41,3 +41,5 @@ NET_VALUES_FILE ../Network_Values/SuperviesedNetwork_Used_in_Video.xml
 NET_TYPE ReinforcmentMul
 
 EXPERIENCE_REPLAY 30
+
+TEMPATURE_CEILING 20000

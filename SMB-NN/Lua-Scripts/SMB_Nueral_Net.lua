@@ -1,5 +1,6 @@
---local STATE_FILE = "C:/Users/eoinm_000/Documents/GitHub/fourth-year-project/SMB-NN/Save_States/SMB_L1-1_laptop.State" --laptop
 
+
+--local STATE_FILE = "C:/Users/eoinm_000/Documents/GitHub/fourth-year-project/SMB-NN/Save_States/SMB_L1-1_laptop.State" --laptop
 local STATE_FILE = "C:/Users/Eoin/Documents/GitHub/fourth-year-project/SMB-NN/Save_States/SMB_L1-1.State" -- desktop
 local TOGGLE_UI = "ON" 
 local RECORD_EXEMPLARS = "OFF"
@@ -149,7 +150,7 @@ function readNumpad()
 
 	if inputs["NumberPad5"] == nil and NUM_PAD5 == true then
 		if EXPLOIT_NET == "OFF" then
-			--loadSaveState(STATE_FILE)
+			loadSaveState(STATE_FILE)
 			local file = io.open(RUN_LOG,"a")
 			file:write('<?xml version="1.0" encoding="UTF-8"?>\n')
 			file:write('<?xml-stylesheet type="text/xsl" href="run_style.xsl"?>\n')
@@ -1330,8 +1331,10 @@ end
 function Q_Learn_ActionNets()
 	loadSaveState(STATE_FILE)
 	EXPERIENCES = {}
-	for steps = 0, TRAIN_ITERATIONS, 1 do
+	for epoch = 0, TRAIN_ITERATIONS, 1 do
 		--drawData(false)
+		gui.drawBox(150,10,250,28,0xFF000000,0xA0000000)
+		gui.drawText(150,12,"epoch: "..epoch.."/"..TRAIN_ITERATIONS,0xFFFFFFFF,10,"Segoe UI")
 		local inputs = getScreen(VIEW_RADIUS)
 		--first we pass the state through the net for each possible action and get all the qvalues
 		local qValues = {}
@@ -1352,8 +1355,19 @@ function Q_Learn_ActionNets()
 			}
 
 		end
-		local qValues_Boltz = calculateBolzmannDist(qValues, temperature(steps))
+		local qValues_Boltz = calculateBolzmannDist(qValues, temperature(epoch))
 		local qxa = chooseAction(qValues_Boltz)
+		if qxa == nil then
+			console.log(qValues)
+			console.log(qValues_Boltz)
+			for i = 1, #qValues, 1 do 
+				console.log(qValues[i])
+			end
+			console.log("---------------")
+			for i = 1, #qValues_Boltz, 1 do 
+				console.log(qValues_Boltz[i])
+			end
+		end
 		--local qxa = highestQ(qValues_Boltz)
 		xState = qxa.state
 		PREV_MARIO_STATE = memory.readbyte(0x001D)
@@ -1385,6 +1399,8 @@ function Q_Learn_ActionNets()
 			if elapsedFrames > 180 then -- if after 100 frames mario hasnt reached a new state then break to allow for a new action to be tried
 				break
 			end
+			gui.drawBox(150,10,250,28,0xFF000000,0xA0000000)
+			gui.drawText(150,12,"epoch: "..epoch.."/"..TRAIN_ITERATIONS,0xFFFFFFFF,10,"Segoe UI")
 			displayQvalues(qValues)
 			--displayBoltzValues(qValues_Boltz)
 			drawData(false)
@@ -1466,7 +1482,7 @@ function Q_Learn_ActionNets()
 
 		-- if the resulting action cause mario to die we need to reload the game to the start 
 		--or else if we leave it the reulting jumps in memory could coruppt the net.
-		if hitEnemy() or fellInPit() then
+		if hitEnemy() or fellInPit() or completedLevel() then
 			loadSaveState(STATE_FILE)
 		end
 	end
@@ -1489,9 +1505,10 @@ function storeExperience(x,a,y,r)
 		StateX = x,
 		action = a,
 		StateY = y,
-		Reward = r
+		reward = r
 	}
 
+	--[[
 	local file = io.open(Q_EXPERIENCE_LOG,"a")
 	file:write(
 		table.concat( x, "|")..
@@ -1500,11 +1517,27 @@ function storeExperience(x,a,y,r)
 		";"..r.."\n"
 	)
 	file:close()
+	--]]
 end
 
+function completedLevel()
+	--if the sound effect register 3 is set to zero
+	--the game is playing the flagpoll sound when mario beats the level
+	if memory.readbyte(0x00FF) == 64 then
+		return true
+	end
+end
+	
 function replayExperiences()
+	client.pause()
+	emu.yeild()
 	for replay = 1, EXPERIENCE_REPLAY, 1 do
 		for e = #EXPERIENCES, 1, -1 do
+			gui.drawBox(10,180,240,204,0xFF000000,0xE1000000)
+			gui.drawText(12,182,"Replaying Experiences: "..replay.."/"..EXPERIENCE_REPLAY..
+				"Experience: "..e.."/"..#EXPERIENCES,0xFFFFFFFF,10,"Segoe UI")
+			local qxa = {}
+			local qValues = {}
 			for i = LOW_I, HIGH_I, 1 do
 				ACTION_NETWORKS["ACTION"..EXPERIENCES[e].action].I[i] = EXPERIENCES[e].StateX[i]
 			end
@@ -1540,6 +1573,7 @@ function replayExperiences()
 			emu.frameadvance()--stop bizhawk from crashing when a frame isnt loaded after a while
 		end
 	end--end replay loop
+	client.unpause()
 end
 
 function logQLearn(qxa, qyb, r, ok, yk)
@@ -1557,7 +1591,7 @@ function logQLearn(qxa, qyb, r, ok, yk)
 	file:write("\nok: "..ok)
 	file:write("\nyk: "..yk)
 	file:write("\nE = (ok-yk)^2 = "..math.pow(ok-yk,2))
-	file:write("\nok - yk = "..ok - yk)
+	file:write("\nyk - ok = "..yk - ok)
 	file:write("\nUpdated Qvalue for Q(x,a): ")
 	if NET_TYPE == "ReinforcmentMul" then
 		for i = LOW_I, HIGH_I, 1 do
@@ -1652,7 +1686,7 @@ function chooseHighestBoltz( QA )
 end
 
 function chooseAction( QA )
-	local x = randomFloat(0,1)
+	local x = randomFloat(0.1,1) --dont want it to give a value of zero
 	local i = 0
 	local sum = 0
 	while sum < x do
@@ -1661,6 +1695,10 @@ function chooseAction( QA )
 		if i == NUM_ACTIONS and sum < x then
 			return QA[NUM_ACTIONS]
 		end
+	end
+	if QA[i] == nil then
+		console.log("x:"..x)
+		console.log(i)
 	end
 	return QA[i]
 end
@@ -1862,32 +1900,49 @@ function  exploitQNet()
 			buttons["P1 "..ButtonNames[a]] = false
 		end
 	end
+	if qxa.action == 7 then
+			buttons["P1 Left"] = true
+			buttons["P1 A"] = true
+		elseif qxa.action == 8 then
+			buttons["P1 Right"] = true
+			buttons["P1 A"] = true
+		end
 
+	resetJumpOnAirToGround(buttons)
 	joypad.set( buttons )
 
 end
 
 function getReinformentValues( )
 	--if the agent was hit by a enemy penilise
+	local r = 0.0
 	if hitEnemy() then 
-		return -0.50
+		r = r -0.50
+	end
 	--if the agent fell in a hole penelise
-	elseif fellInPit() then
-		return -0.50
+	if fellInPit() then
+		r = r  -0.50
+	end
 	--reward the agent if it got closer over an obsticle in its path
-	elseif closerOverObject(xState,yState) then
-		return 0.50
+	if closerOverObject(xState,yState) then
+		r = r + 0.50
+	end
 	--reward the agent if it got closer over an enemy in its path
-	elseif closerOverEnemy(xState,yState) then
-		return 0.50
+	if closerOverEnemy(xState,yState) then
+		r = r + 0.50
+	end
 	--penilise the agent if it took an action that didnt lead to a new state
-	elseif table.concat( xState, "") == table.concat( yState, "") then
-		return -0.04
-	elseif PREV_PLAYER_X < PLAYER_X then
-		return 0.1
+	if table.concat( xState, "") == table.concat( yState, "") then
+		r = r -0.04
+	end
+	if PREV_PLAYER_X < PLAYER_X then
+		r = r + 0.05
 	end
 	--otherwise if the action was of no benifit penilise
-	return -0.02
+	if r == 0.0 then 
+		r = r -0.02
+	end
+	return r
 end
 
 function hitEnemy(  )
@@ -1909,7 +1964,7 @@ end
 
 function fellInPit()
 	getPlayerPosition()
-	if(PLAYER_Y * memory.readbyte(0x00B5) > 198 ) then
+	if(PLAYER_Y * memory.readbyte(0x00B5) > 198 ) and MARIO_STATE > 0 then
 		return true
 	end
 	return false
@@ -1960,6 +2015,7 @@ while true do
 		--check if the user hits 5 again to end the net execute.
 		if NET_TYPE == "ReinforcmentMul" then
 			exploitQNet()
+			readNumpad()
 		else
 			buttons = exploit(NETWORK)
 			resetJumpOnAirToGround(buttons)
