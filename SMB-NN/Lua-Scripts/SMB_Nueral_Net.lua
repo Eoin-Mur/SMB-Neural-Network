@@ -46,7 +46,7 @@ local LOW_K
 local HIGH_K 
 
 local TRAIN_ITERATIONS --add to config
-
+local TEMPATURE_CEILING --added to config
 local C --add to config
 local RATE --add to config
 local DISCOUNT_FACTOR --added to config
@@ -960,6 +960,7 @@ function loadConfig(filename)
 	TRAIN_ITERATIONS = tonumber(config["TRAIN_ITERATIONS"])
 	NET_TYPE = config["NET_TYPE"];
 	EXPERIENCE_REPLAY = tonumber(config["EXPERIENCE_REPLAY"])
+	TEMPATURE_CEILING = tonumber(config["TEMPATURE_CEILING"])
 	loadNetConfig()
 
 end
@@ -1329,162 +1330,168 @@ function Q_Learn( )
 end
 
 function Q_Learn_ActionNets()
-	loadSaveState(STATE_FILE)
-	EXPERIENCES = {}
-	for epoch = 0, TRAIN_ITERATIONS, 1 do
+	local total_epochs = 0
+	for run = 1, TRAIN_ITERATIONS, 1 do
 		--drawData(false)
-		gui.drawBox(150,10,250,28,0xFF000000,0xA0000000)
-		gui.drawText(150,12,"epoch: "..epoch.."/"..TRAIN_ITERATIONS,0xFFFFFFFF,10,"Segoe UI")
-		local inputs = getScreen(VIEW_RADIUS)
-		--first we pass the state through the net for each possible action and get all the qvalues
-		local qValues = {}
-		--for each action
-		for a = 1, NUM_ACTIONS, 1 do
-			--load the the state inputs to pass through net
-			for i = LOW_I, HIGH_I, 1 do
-				ACTION_NETWORKS["ACTION"..a].I[i] = inputs[i]
-			end
-			--pass the inputs through the net
-			forwardPropigate(ACTION_NETWORKS["ACTION"..a])
-			--add the outputed qvalues to out list of qvalues
-			qValues[#qValues + 1] = 
-			{
-				value = ACTION_NETWORKS["ACTION"..a].y[HIGH_K],
-				state = inputs,
-				action = a
-			}
-
-		end
-		local qValues_Boltz = calculateBolzmannDist(qValues, temperature(epoch))
-		local qxa = chooseAction(qValues_Boltz)
-		if qxa == nil then
-			console.log(qValues)
-			console.log(qValues_Boltz)
-			for i = 1, #qValues, 1 do 
-				console.log(qValues[i])
-			end
-			console.log("---------------")
-			for i = 1, #qValues_Boltz, 1 do 
-				console.log(qValues_Boltz[i])
-			end
-		end
-		--local qxa = highestQ(qValues_Boltz)
-		xState = qxa.state
-		PREV_MARIO_STATE = memory.readbyte(0x001D)
-
-		displayQvalues(qValues)
-		--displayBoltzValues(qValues_Boltz)
-		drawData(false)
-
-		--now set the controler for each according to the action taken
-		local buttons = {}
-		for a = 1, #ButtonNames, 1 do
-			if a == qxa.action then
-				buttons["P1 "..ButtonNames[a]] = true
-			else
-				buttons["P1 "..ButtonNames[a]] = false
-			end
-		end
-		if qxa.action == 7 then
-			buttons["P1 Left"] = true
-			buttons["P1 A"] = true
-		elseif qxa.action == 8 then
-			buttons["P1 Right"] = true
-			buttons["P1 A"] = true
-		end
-		--console.log( buttons )
-		--execute controler button press and move to next frame/state
-		local elapsedFrames = 0
-		while table.concat(xState,"") == table.concat(getScreen(VIEW_RADIUS), "") do
-			if elapsedFrames > 180 then -- if after 100 frames mario hasnt reached a new state then break to allow for a new action to be tried
-				break
-			end
+		loadSaveState(STATE_FILE)
+		EXPERIENCES = {}
+		local epoch = 0
+		while(completedLevel() == false) do
+			epoch = epoch+1
+			total_epochs = total_epochs + epoch
 			gui.drawBox(150,10,250,28,0xFF000000,0xA0000000)
-			gui.drawText(150,12,"epoch: "..epoch.."/"..TRAIN_ITERATIONS,0xFFFFFFFF,10,"Segoe UI")
+			gui.drawText(150,10,"Epoch: "..epoch.." Run: "..run,0xFFFFFFFF,10,"Segoe UI")
+			local inputs = getScreen(VIEW_RADIUS)
+			--first we pass the state through the net for each possible action and get all the qvalues
+			local qValues = {}
+			--for each action
+			for a = 1, NUM_ACTIONS, 1 do
+				--load the the state inputs to pass through net
+				for i = LOW_I, HIGH_I, 1 do
+					ACTION_NETWORKS["ACTION"..a].I[i] = inputs[i]
+				end
+				--pass the inputs through the net
+				forwardPropigate(ACTION_NETWORKS["ACTION"..a])
+				--add the outputed qvalues to out list of qvalues
+				qValues[#qValues + 1] = 
+				{
+					value = ACTION_NETWORKS["ACTION"..a].y[HIGH_K],
+					state = inputs,
+					action = a
+				}
+
+			end
+			local qValues_Boltz = calculateBolzmannDist(qValues, temperature(total_epochs))
+			local qxa = chooseAction(qValues_Boltz)
+			if qxa == nil then
+				console.log(qValues)
+				console.log(qValues_Boltz)
+				for i = 1, #qValues, 1 do 
+					console.log(qValues[i])
+				end
+				console.log("---------------")
+				for i = 1, #qValues_Boltz, 1 do 
+					console.log(qValues_Boltz[i])
+				end
+			end
+			--local qxa = highestQ(qValues_Boltz)
+			xState = qxa.state
+			PREV_MARIO_STATE = memory.readbyte(0x001D)
+
 			displayQvalues(qValues)
 			--displayBoltzValues(qValues_Boltz)
 			drawData(false)
-			joypad.set( buttons )
-			PREV_PLAYER_X = PLAYER_X
-			PREV_PLAYER_Y = PLAYER_Y
-			emu.frameadvance()
-			resetTime( )
-			MARIO_STATE = memory.readbyte(0x001D)
-			elapsedFrames = elapsedFrames + 1
-		end
 
-		resetJumpOnAirToGround(buttons)
-
-		--get our reincforment values for the new state.
-		--reward if mario progressed further into the level(PLAYER_X increases) NOTE:may need to alter this
-		--punish if mario dies
-			-- *gets hit by a enemy (getHitboxes() function if marios hit box falls inside a enemys hit box) NOTE: will need to alter this
-				--in case it doest reflect in training that previsous states lead to death ie. mario jumped to late and as such the state in which mario actually hit the enemy may hae a different action 
-				-- then the state that initaly caused it...... i need to write up all this more detail outside of comments..
-				--TODO:write up report on potental/identifyed problems/resolutions
-			-- *falls into a pit (where PLAYER_Y position falls below 16 pixels, this is ass each tile is a 16x16 sprite so the top of the floor should be on the 16 pixel level )
-		--get the next state
-		inputs = getScreen(VIEW_RADIUS)
-
-		--displayR(r)
-		--calculate ok
-		--local ok = r + (DISCOUNT_FACTOR *qxa.value)
-
-		--now calulate our yk value and back propigate the error through the net to adjust the weights
-		--set our qvalues list to be empty
-		qValues = {}
-		for a = 1, NUM_ACTIONS, 1 do
-			--load the the state inputs to pass through net
-			for i = LOW_I, HIGH_I, 1 do
-				ACTION_NETWORKS["ACTION"..a].I[i] = inputs[i]
+			--now set the controler for each according to the action taken
+			local buttons = {}
+			for a = 1, #ButtonNames, 1 do
+				if a == qxa.action then
+					buttons["P1 "..ButtonNames[a]] = true
+				else
+					buttons["P1 "..ButtonNames[a]] = false
+				end
 			end
-			forwardPropigate(ACTION_NETWORKS["ACTION"..a])
-			qValues[#qValues + 1] = 
-			{
-				value = ACTION_NETWORKS["ACTION"..a].y[HIGH_K],
-				state = inputs,
-				action = a
-			}
-		end
+			if qxa.action == 7 then
+				buttons["P1 Left"] = true
+				buttons["P1 A"] = true
+			elseif qxa.action == 8 then
+				buttons["P1 Right"] = true
+				buttons["P1 A"] = true
+			end
+			--console.log( buttons )
+			--execute controler button press and move to next frame/state
+			local elapsedFrames = 0
+			while table.concat(xState,"") == table.concat(getScreen(VIEW_RADIUS), "") do
+				if elapsedFrames > 180 then -- if after 100 frames mario hasnt reached a new state then break to allow for a new action to be tried
+					break
+				end
+				gui.drawBox(150,10,250,28,0xFF000000,0xA0000000)
+				gui.drawText(150,10,"Epoch: "..epoch.." Run: "..run,0xFFFFFFFF,10,"Segoe UI")
+				displayQvalues(qValues)
+				--displayBoltzValues(qValues_Boltz)
+				drawData(false)
+				joypad.set( buttons )
+				PREV_PLAYER_X = PLAYER_X
+				PREV_PLAYER_Y = PLAYER_Y
+				emu.frameadvance()
+				resetTime( )
+				MARIO_STATE = memory.readbyte(0x001D)
+				elapsedFrames = elapsedFrames + 1
+			end
 
-		local qyb = highestQ(qValues)
-		yState = qyb.state
+			resetJumpOnAirToGround(buttons)
 
-		local r = getReinformentValues()
-		--displayR(r)
+			--get our reincforment values for the new state.
+			--reward if mario progressed further into the level(PLAYER_X increases) NOTE:may need to alter this
+			--punish if mario dies
+				-- *gets hit by a enemy (getHitboxes() function if marios hit box falls inside a enemys hit box) NOTE: will need to alter this
+					--in case it doest reflect in training that previsous states lead to death ie. mario jumped to late and as such the state in which mario actually hit the enemy may hae a different action 
+					-- then the state that initaly caused it...... i need to write up all this more detail outside of comments..
+					--TODO:write up report on potental/identifyed problems/resolutions
+				-- *falls into a pit (where PLAYER_Y position falls below 16 pixels, this is ass each tile is a 16x16 sprite so the top of the floor should be on the 16 pixel level )
+			--get the next state
+			inputs = getScreen(VIEW_RADIUS)
 
-		local ok = r + (DISCOUNT_FACTOR * qyb.value)
-		local yk = qxa.value
-		yk = ((1-RATE) * yk) + (RATE * ok)
-		--yk = yk + RATE * (ok - yk)
-	
-	--[[
-		console.log("X = ")
-		console.log(qxa)
-		console.log("Y = ")
-		console.log(qyb)
-		console.log("R = "..r)
-		console.log("ok: "..ok)
-		console.log("yk:"..yk)
-	--]]
+			--displayR(r)
+			--calculate ok
+			--local ok = r + (DISCOUNT_FACTOR *qxa.value)
+
+			--now calulate our yk value and back propigate the error through the net to adjust the weights
+			--set our qvalues list to be empty
+			qValues = {}
+			for a = 1, NUM_ACTIONS, 1 do
+				--load the the state inputs to pass through net
+				for i = LOW_I, HIGH_I, 1 do
+					ACTION_NETWORKS["ACTION"..a].I[i] = inputs[i]
+				end
+				forwardPropigate(ACTION_NETWORKS["ACTION"..a])
+				qValues[#qValues + 1] = 
+				{
+					value = ACTION_NETWORKS["ACTION"..a].y[HIGH_K],
+					state = inputs,
+					action = a
+				}
+			end
+
+			local qyb = highestQ(qValues)
+			yState = qyb.state
+
+			local r = getReinformentValues()
+			--displayR(r)
+
+			local ok = r + (DISCOUNT_FACTOR * qyb.value)
+			local yk = qxa.value
+			yk = ((1-RATE) * yk) + (RATE * ok)
+			--yk = yk + RATE * (ok - yk)
 		
-		--pass back the original state to the network we are updating
-		for i = LOW_I, HIGH_I, 1 do
-			ACTION_NETWORKS["ACTION"..qxa.action].I[i] = qxa.state[i]
-		end
+		--[[
+			console.log("X = ")
+			console.log(qxa)
+			console.log("Y = ")
+			console.log(qyb)
+			console.log("R = "..r)
+			console.log("ok: "..ok)
+			console.log("yk:"..yk)
+		--]]
+			
+			--pass back the original state to the network we are updating
+			for i = LOW_I, HIGH_I, 1 do
+				ACTION_NETWORKS["ACTION"..qxa.action].I[i] = qxa.state[i]
+			end
 
-		forwardPropigate(ACTION_NETWORKS["ACTION"..qxa.action])
+			forwardPropigate(ACTION_NETWORKS["ACTION"..qxa.action])
 
-		backPropigate_QValue(yk, ok, ACTION_NETWORKS["ACTION"..qxa.action])
+			backPropigate_QValue(yk, ok, ACTION_NETWORKS["ACTION"..qxa.action])
 
-		logQLearn(qxa, qyb, r, ok, yk)
-		storeExperience(qxa.state, qxa.action, qyb.state, r)
+			logQLearn(qxa, qyb, r, ok, yk)
+			storeExperience(qxa.state, qxa.action, qyb.state, r)
 
-		-- if the resulting action cause mario to die we need to reload the game to the start 
-		--or else if we leave it the reulting jumps in memory could coruppt the net.
-		if hitEnemy() or fellInPit() or completedLevel() then
-			loadSaveState(STATE_FILE)
-		end
+			-- if the resulting action cause mario to die we need to reload the game to the start 
+			--or else if we leave it the reulting jumps in memory could coruppt the net.
+			if hitEnemy() or fellInPit() then
+				loadSaveState(STATE_FILE)
+			end
+		end --end while
 	end
 	replayExperiences()
 	StoreQLearningNetworkValues_XML( NET_VAL_XML_Q , ACTION_NETWORKS)
@@ -1526,16 +1533,19 @@ function completedLevel()
 	if memory.readbyte(0x00FF) == 64 then
 		return true
 	end
+	return false
 end
 	
 function replayExperiences()
+	gui.drawBox(10,180,250,204,0xFF000000,0xE1000000)
+	gui.drawText(2,182,"Replaying "..#EXPERIENCES.." Experiences From Last Run "..EXPERIENCE_REPLAY.." Times!",0xFFFFFFFF,10,"Segoe UI")
 	client.pause()
-	emu.yeild()
+	emu.yield()
 	for replay = 1, EXPERIENCE_REPLAY, 1 do
 		for e = #EXPERIENCES, 1, -1 do
-			gui.drawBox(10,180,240,204,0xFF000000,0xE1000000)
-			gui.drawText(12,182,"Replaying Experiences: "..replay.."/"..EXPERIENCE_REPLAY..
-				"Experience: "..e.."/"..#EXPERIENCES,0xFFFFFFFF,10,"Segoe UI")
+			--gui.drawBox(10,180,240,204,0xFF000000,0xE1000000)
+			--gui.drawText(12,182,"Replaying Experiences: "..replay.."/"..EXPERIENCE_REPLAY..
+			--	"Experience: "..e.."/"..#EXPERIENCES,0xFFFFFFFF,10,"Segoe UI")
 			local qxa = {}
 			local qValues = {}
 			for i = LOW_I, HIGH_I, 1 do
@@ -1570,7 +1580,7 @@ function replayExperiences()
 			forwardPropigate(ACTION_NETWORKS["ACTION"..EXPERIENCES[e].action])
 			backPropigate_QValue(yk, ok, ACTION_NETWORKS["ACTION"..EXPERIENCES[e].action])
 			
-			emu.frameadvance()--stop bizhawk from crashing when a frame isnt loaded after a while
+			--emu.frameadvance()--stop bizhawk from crashing when a frame isnt loaded after a while
 		end
 	end--end replay loop
 	client.unpause()
@@ -1726,7 +1736,7 @@ function temperature(steps)
 	if steps >= TRAIN_ITERATIONS then
 		return minQT
 	else
-		local e = steps / TRAIN_ITERATIONS
+		local e = steps / TEMPATURE_CEILING
 		return minQT + (1-e) *(maxQT-minQT)
 	end
 end
