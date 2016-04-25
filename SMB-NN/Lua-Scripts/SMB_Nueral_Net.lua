@@ -46,6 +46,7 @@ local LOW_K
 local HIGH_K 
 
 local TRAIN_ITERATIONS --add to config
+local RUN_EXPERIENCES --config
 local TEMPATURE_CEILING --added to config
 local C --add to config
 local RATE --add to config
@@ -958,6 +959,7 @@ function loadConfig(filename)
 	DISCOUNT_FACTOR = tonumber(config["DISCOUNT_FACTOR"])
 	SIGMOID_TYPE = config["SIGMOID_TYPE"]
 	TRAIN_ITERATIONS = tonumber(config["TRAIN_ITERATIONS"])
+	RUN_EXPERIENCES = tonumber(config["RUN_EXPERIENCES"])
 	NET_TYPE = config["NET_TYPE"];
 	EXPERIENCE_REPLAY = tonumber(config["EXPERIENCE_REPLAY"])
 	TEMPATURE_CEILING = tonumber(config["TEMPATURE_CEILING"])
@@ -1333,10 +1335,14 @@ function Q_Learn_ActionNets()
 	local total_epochs = 0
 	for run = 1, TRAIN_ITERATIONS, 1 do
 		--drawData(false)
+		local runFinshed = false
 		loadSaveState(STATE_FILE)
 		EXPERIENCES = {}
 		local epoch = 0
-		while(completedLevel() == false) do
+		-- if we want to train untill it beats the level
+		--while(runFinshed == false) do
+
+		while(epoch < RUN_EXPERIENCES) do
 			epoch = epoch+1
 			total_epochs = total_epochs + epoch
 			gui.drawBox(150,10,250,28,0xFF000000,0xA0000000)
@@ -1404,6 +1410,9 @@ function Q_Learn_ActionNets()
 			while table.concat(xState,"") == table.concat(getScreen(VIEW_RADIUS), "") do
 				if elapsedFrames > 180 then -- if after 100 frames mario hasnt reached a new state then break to allow for a new action to be tried
 					break
+				end
+				if completedLevel() then
+					runFinshed = true
 				end
 				gui.drawBox(150,10,250,28,0xFF000000,0xA0000000)
 				gui.drawText(150,10,"Epoch: "..epoch.." Run: "..run,0xFFFFFFFF,10,"Segoe UI")
@@ -1491,9 +1500,21 @@ function Q_Learn_ActionNets()
 			if hitEnemy() or fellInPit() then
 				loadSaveState(STATE_FILE)
 			end
+			if completedLevel() then
+				runFinshed = true
+			end
+
+			--if we are running for a set number of experiences we need to reload the savestate
+			--if the agent reachs the end instead of moving to a new run
+			--REMOVE THIS IF USING TRAINING UNTILL BEAT
+			if runFinshed == true then
+				loadSaveState(STATE_FILE)
+			end
+
 		end --end while
+		console.log(total_epochs)
+		replayExperiences()
 	end
-	replayExperiences()
 	StoreQLearningNetworkValues_XML( NET_VAL_XML_Q , ACTION_NETWORKS)
 end
 
@@ -1539,13 +1560,14 @@ end
 function replayExperiences()
 	gui.drawBox(10,180,250,204,0xFF000000,0xE1000000)
 	gui.drawText(2,182,"Replaying "..#EXPERIENCES.." Experiences From Last Run "..EXPERIENCE_REPLAY.." Times!",0xFFFFFFFF,10,"Segoe UI")
-	client.pause()
-	emu.yield()
+	--client.pause() --stope emulation to avoid the emulator from crashing from not having a new frame rendered (doesnt actually work sometimes Best of just calling frame advance)
+	--emu.yield()
 	for replay = 1, EXPERIENCE_REPLAY, 1 do
+		--replay experiences backwares
 		for e = #EXPERIENCES, 1, -1 do
-			--gui.drawBox(10,180,240,204,0xFF000000,0xE1000000)
-			--gui.drawText(12,182,"Replaying Experiences: "..replay.."/"..EXPERIENCE_REPLAY..
-			--	"Experience: "..e.."/"..#EXPERIENCES,0xFFFFFFFF,10,"Segoe UI")
+			gui.drawBox(10,180,240,204,0xFF000000,0xE1000000)
+			gui.drawText(12,182,"Replaying Experiences: "..replay.."/"..EXPERIENCE_REPLAY..
+				" Experience: "..e.."/"..#EXPERIENCES,0xFFFFFFFF,10,"Segoe UI")
 			local qxa = {}
 			local qValues = {}
 			for i = LOW_I, HIGH_I, 1 do
@@ -1580,7 +1602,7 @@ function replayExperiences()
 			forwardPropigate(ACTION_NETWORKS["ACTION"..EXPERIENCES[e].action])
 			backPropigate_QValue(yk, ok, ACTION_NETWORKS["ACTION"..EXPERIENCES[e].action])
 			
-			--emu.frameadvance()--stop bizhawk from crashing when a frame isnt loaded after a while
+			emu.frameadvance()--stop bizhawk from crashing when a frame isnt loaded after a while
 		end
 	end--end replay loop
 	client.unpause()
@@ -1813,6 +1835,10 @@ function  closerOverObject( prevState, newState )
 	return false
 end
 
+function overObject( prevState, newState )
+	
+end
+
 function enemyInRadius( state )
 	local m = inputsToMatrix(state)
 	local marioRow = m[VIEW_RADIUS+2]
@@ -1927,26 +1953,26 @@ function getReinformentValues( )
 	--if the agent was hit by a enemy penilise
 	local r = 0.0
 	if hitEnemy() then 
-		r = r -0.50
+		r = r -0.5
 	end
 	--if the agent fell in a hole penelise
 	if fellInPit() then
-		r = r  -0.50
+		r = r  -0.5
 	end
 	--reward the agent if it got closer over an obsticle in its path
 	if closerOverObject(xState,yState) then
-		r = r + 0.50
+		r = r + 0.2
 	end
 	--reward the agent if it got closer over an enemy in its path
 	if closerOverEnemy(xState,yState) then
-		r = r + 0.50
+		r = r + 0.2
 	end
 	--penilise the agent if it took an action that didnt lead to a new state
 	if table.concat( xState, "") == table.concat( yState, "") then
 		r = r -0.04
 	end
 	if PREV_PLAYER_X < PLAYER_X then
-		r = r + 0.05
+		r = r + 0.1
 	end
 	--otherwise if the action was of no benifit penilise
 	if r == 0.0 then 
@@ -1961,16 +1987,6 @@ function hitEnemy(  )
 	end
 	return false
 end
-
---[[
-
-	x1,y1------
-	|					| 
-	|					| 	x1,y1--|
-	|					|		|      |
-	|-----x2,y2 	|--x2,y2
-
-]]--
 
 function fellInPit()
 	getPlayerPosition()
@@ -2041,4 +2057,5 @@ while true do
 	PREV_MARIO_STATE = MARIO_STATE
 	emu.frameadvance()
 	MARIO_STATE = memory.readbyte(0x001D)
+	--console.log(completedLevel())
 end
