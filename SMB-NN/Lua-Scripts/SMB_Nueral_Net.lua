@@ -1344,7 +1344,7 @@ function Q_Learn_ActionNets()
 
 		while(epoch < RUN_EXPERIENCES) do
 			epoch = epoch+1
-			total_epochs = total_epochs + epoch
+			total_epochs = total_epochs + 1
 			gui.drawBox(150,10,250,28,0xFF000000,0xA0000000)
 			gui.drawText(150,10,"Epoch: "..epoch.." Run: "..run,0xFFFFFFFF,10,"Segoe UI")
 			local inputs = getScreen(VIEW_RADIUS)
@@ -1508,7 +1508,9 @@ function Q_Learn_ActionNets()
 			--if the agent reachs the end instead of moving to a new run
 			--REMOVE THIS IF USING TRAINING UNTILL BEAT
 			if runFinshed == true then
+				console.log("completed Level!")
 				loadSaveState(STATE_FILE)
+				runFinshed = false
 			end
 
 		end --end while
