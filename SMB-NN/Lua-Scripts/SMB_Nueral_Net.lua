@@ -1467,10 +1467,16 @@ function Q_Learn_ActionNets()
 
 			local r = getReinformentValues()
 			--displayR(r)
-
-			local ok = r + (DISCOUNT_FACTOR * qyb.value)
+			local ok
+			if hitEnemy() or fellInPit() then
+				ok = r 
+				console.log("terminal State!")
+			else 
+				 ok = r + (DISCOUNT_FACTOR * qyb.value)
+			end
 			local yk = qxa.value
 			yk = ((1-RATE) * yk) + (RATE * ok)
+
 			--yk = yk + RATE * (ok - yk)
 		
 		--[[
@@ -1550,6 +1556,18 @@ function storeExperience(x,a,y,r)
 	--]]
 end
 
+function expOccurence( exp )
+	local x = 0;
+	for i = 1, #EXPERIENCES, 1 do
+		local cur = EXPERIENCES[i]
+		if cur.StateX == exp.StateX and cur.StateY == exp.StateY
+		and cur.reward == exp.reward and cur.action == exp.action then
+			x = x + 1
+		end
+	end
+	return x - 1
+end
+
 function completedLevel()
 	--if the sound effect register 3 is set to zero
 	--the game is playing the flagpoll sound when mario beats the level
@@ -1594,6 +1612,7 @@ function replayExperiences()
 					}
 			end
 			local qyb = highestQ(qValues)
+
 			local ok = EXPERIENCES[e].reward + (DISCOUNT_FACTOR * qyb.value)
 			local yk = qxa.value
 			yk = ((1-RATE) * yk) + (RATE * ok)
@@ -1624,7 +1643,7 @@ function logQLearn(qxa, qyb, r, ok, yk)
 	file:write("\n\nReinforcment value for x,a: "..r)
 	file:write("\nok: "..ok)
 	file:write("\nyk: "..yk)
-	file:write("\nE = (ok-yk)^2 = "..math.pow(ok-yk,2))
+	file:write("\nE = (yk-ok)^2 = "..math.pow(yk-ok,2))
 	file:write("\nyk - ok = "..yk - ok)
 	file:write("\nUpdated Qvalue for Q(x,a): ")
 	if NET_TYPE == "ReinforcmentMul" then
@@ -1830,7 +1849,7 @@ function  closerOverObject( prevState, newState )
 		if memory.readbyte(0x001D) == 0 and i == (VIEW_RADIUS + 3) then
 			return false
 		end
-		if M1Col[i] == 1 and M2Col[i] == 0 and joypad.get()["P1 A"] == true then
+		if M1Col[i] == 1 and M2Col[i] == 0 and joypad.get()["P1 A"] == true and memory.readbyte(0x0003) == 1 then
 			return true
 		end
 	end
@@ -1955,11 +1974,13 @@ function getReinformentValues( )
 	--if the agent was hit by a enemy penilise
 	local r = 0.0
 	if hitEnemy() then 
-		r = r -0.5
+		r = -0.2
+		return r
 	end
 	--if the agent fell in a hole penelise
 	if fellInPit() then
-		r = r  -0.5
+		r = -0.2
+		return r
 	end
 	--reward the agent if it got closer over an obsticle in its path
 	if closerOverObject(xState,yState) then
