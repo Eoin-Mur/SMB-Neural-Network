@@ -343,11 +343,11 @@ function getScreen(radius)
 
 			for i = 1, #enemys,1 do
 				distx = math.abs(enemys[i]["x"] - (PLAYER_X+tileX))
-        disty = math.abs(enemys[i]["y"] - (PLAYER_Y+tileY))
-        if distx <= 8 and disty <= 8 then
-          screen[#screen] = -1
-        end
-      end
+		        disty = math.abs(enemys[i]["y"] - (PLAYER_Y+tileY))
+		        if distx <= 8 and disty <= 8 then
+		          screen[#screen] = -1
+		        end
+      		end
 		end
 	end
 	return screen
@@ -1585,6 +1585,7 @@ function replayExperiences()
 	for replay = 1, EXPERIENCE_REPLAY, 1 do
 		--replay experiences backwares
 		for e = #EXPERIENCES, 1, -1 do
+		--for e = 1, #EXPERIENCES, 1 do
 			gui.drawBox(10,180,240,204,0xFF000000,0xE1000000)
 			gui.drawText(12,182,"Replaying Experiences: "..replay.."/"..EXPERIENCE_REPLAY..
 				" Experience: "..e.."/"..#EXPERIENCES,0xFFFFFFFF,10,"Segoe UI")

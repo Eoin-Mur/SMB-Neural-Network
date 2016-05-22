@@ -1,4 +1,4 @@
-# My configuration file for the SMB_Supervised_Net lua script
+# Configuration file for the SMB_Supervised_Net lua script
 
 # Filename of the exemplar file used for training the network
 # ../Exemplar_Files/ 
@@ -13,7 +13,7 @@ RECORD_F 2500
 VIEW_RADIUS 2
 
 # number of nureons in the hidden layer
-NUM_NUERONS 40
+NUM_NUERONS 20
 
 # constant to determine the inital network weights
 C 0.1
@@ -21,28 +21,31 @@ C 0.1
 # Learning Rate 0 < RATE < 1
 RATE 0.5
 
+# Discount factor used in reinforcemnt learning for determining wheter the agent should choose imediate rewards or later rewards
 DISCOUNT_FACTOR 0.6
 
-#sigmoid type can be:
+# sigmoid type can be:
 # binary
 # bipolar
 SIGMOID_TYPE binary
 
 # number of times the network trains from the exemplar file
-TRAIN_ITERATIONS 100
+TRAIN_ITERATIONS 25
 
 # number of experiences the agent should experience for each iteration of the world
-RUN_EXPERIENCES 2000
+RUN_EXPERIENCES 1000
 
 # xml file with the trained network values
-NET_VALUES_FILE ../Network_Values/NET-Values.xml
+NET_VALUES_FILE ../Network_Values/SuperviesedNetwork_Used_in_Video.xml
 
 # Network types:
 # Supervised
 # Reinforcment
 # ReinforcmentMul
-NET_TYPE ReinforcmentMul
+NET_TYPE Supervised
 
+# number if times to replay the experiences from ta run in reinforment learning 
 EXPERIENCE_REPLAY 20
 
-TEMPATURE_CEILING 100000
+# the tempature ceiling as used in Boltzmann distrobution
+TEMPATURE_CEILING 50000
